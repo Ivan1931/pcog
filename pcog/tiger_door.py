@@ -174,6 +174,7 @@ def makeTigerProblem():
 
     return model
 
+
 def tiger_door_simulation():
     # Create model of the problem.
     model = makeTigerProblem()
