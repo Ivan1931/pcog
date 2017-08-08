@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import time
-import deps.MDP as MDP
-import deps.POMDP as POMDP
+from deps import MDP
+from deps import POMDP
 
 # RENDERING
 
@@ -286,3 +286,6 @@ def tiger_door_simulation():
 
     # Put the cursor back where it should be.
     godown(3 * len(prize) + len(man) + 3)
+
+if __name__ == "__main__":
+    tiger_door_simulation()
