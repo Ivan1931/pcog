@@ -8,8 +8,9 @@ A_LISTEN = 0
 A_LEFT   = 1
 A_RIGHT  = 2
 
-TIG_LEFT    = 0
-TIG_RIGHT   = 1
+TIG_LEFT = 0
+TIG_RIGHT = 1
+
 
 def make_pcog_simulation():
     # Actions are: 0-listen, 1-open-left, 2-open-right
