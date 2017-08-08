@@ -1,10 +1,32 @@
 from typing import Tuple, Optional
 from json import loads
+from .envconf import HealthState, DangerObservation
 
+import math
+
+def dist(a, b):
+    return math.sqrt(math.sqrt(a[0] - b[0]) +
+                     math.sqrt(a[1] - b[1]) +
+                     math.sqrt(a[2] - b[2]))
 
 class Humanoid(object):
-    def __init__(self, entity_id, position, health, stamina):
-        # type: (int, Tuple[float, float, float] , float, float) -> None
+    """
+    Humanoid is a python class that wraps around json data
+    that describes the current state of the agent in the QCOG test bed environment.
+
+    An example of the json data used to create this class.
+
+    {
+      "lastWolfPosition": [29.02450942993164,0.0,27.91568946838379],
+      "lastFoodPosition":[0.0,0.0,0.0],
+      "position":[29.140689849853516,0.0,26.8988094329834],
+      "entityId":0,
+      "stamina":100.0,
+      "health":7.0
+    }
+    """
+    def __init__(self, position, health, stamina):
+        # type: (Tuple[float, float, float] , float, float) -> None
         """
 
         :param entity_id: Agents id - we may need this
@@ -12,12 +34,33 @@ class Humanoid(object):
         :param health: Agents health - we discretise this for the POMDP
         :param stamina: Agents stamina - discretised for the POMDPO
         """
-        self.entity_id = entity_id
         self.position = position
         self.health = health
         self.stamina = stamina
         self.wolf_position = None  # type: Optional[Tuple[float, float, float]]
         self.food_position = None  # type: Optional[Tuple[float, float, float]]
+
+    def get_danger_level(self):
+        if self.wolf_position is None:
+            return DangerObservation.UNKNOWN
+        d = dist(self.wolf_position, self.position)
+        if 7.0 < d:
+            return DangerObservation.FAR
+        elif 4.0 < d < 7.0:
+            return DangerObservation.CLOSE
+        else:
+            return DangerObservation.UNDER_ATTACK
+
+    def get_health_state(self):
+        if 7.0 < self.health:
+            return DangerObservation.GOOD
+        elif 4.0 < self.health < 7.0:
+            return DangerObservation.AVERAGE
+        else:
+            return DangerObservation.BAD
+
+    def get_hunger_level(self):
+        pass
 
     @staticmethod
     def from_dict(data):
@@ -28,7 +71,10 @@ class Humanoid(object):
         :return: a Humanoid derived from the dict
         """
         x, y, z = data["position"]
-        return Humanoid(data["id"], (x, y, z), data["health"], data["stamina"])
+        humanoid = Humanoid((x, y, z), data["health"], data["stamina"])
+        humanoid.wolf_position = tuple(data["lastWolfPosition"])
+        humanoid.food_position = tuple(data["lastFoodPosition"])
+        return humanoid
 
     @staticmethod
     def from_json(json_string):
@@ -41,7 +87,5 @@ class Humanoid(object):
         data = loads(json_string)
         if type(data) == dict:
             return Humanoid.from_dict(data)
-        if type(data) == list:
-            humanoid = Humanoid.from_dict(data["humanoid"])
-            x, y, z = data["wolf"]
-            humanoid.wolf_position = (float(x), float(y), float(z))
+        else:
+            raise ValueError("Error, unrecognised json parse type")

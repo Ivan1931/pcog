@@ -1,7 +1,6 @@
 from deps import MDP
 from deps import POMDP
-import time
-
+from .envconf import HealthState, DangerObservation, Action
 
 # MODEL
 A_LISTEN = 0
@@ -12,11 +11,11 @@ TIG_LEFT = 0
 TIG_RIGHT = 1
 
 
-def make_pcog_simulation():
+def make_pcog_simulation(humanoid):
     # Actions are: 0-listen, 1-open-left, 2-open-right
-    S = 2
-    A = 3
-    O = 2
+    S = HealthState.N * DangerObservation.N
+    A = Action.N
+    O = DangerObservation.N
     model = POMDP.Model(O, S, A)
     transitions = [[[0 for x in xrange(S)] for y in xrange(A)] for k in xrange(S)]
     rewards = [[[0 for x in xrange(S)] for y in xrange(A)] for k in xrange(S)]
