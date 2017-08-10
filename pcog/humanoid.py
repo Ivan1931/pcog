@@ -72,8 +72,8 @@ class Humanoid(object):
         """
         x, y, z = data["position"]
         humanoid = Humanoid((x, y, z), data["health"], data["stamina"])
-        humanoid.wolf_position = tuple(data["lastWolfPosition"])
-        humanoid.food_position = tuple(data["lastFoodPosition"])
+        humanoid.wolf_position = tuple(data["lastWolfPosition"]) if data["lastWolfPosition"] else None
+        humanoid.food_position = tuple(data["lastFoodPosition"]) if data["lastFoodPosition"] else None
         return humanoid
 
     @staticmethod

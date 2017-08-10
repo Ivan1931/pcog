@@ -14,10 +14,22 @@ humoid_json = """
       "health":7.0
 }
 """
-
+humanoid_null_wolf = """
+{
+    "position":[5.669702053070068,0.0,1.7854390144348145],
+    "entityId":0,
+    "stamina":100.0,
+    "health":10.0,
+    "lastWolfPosition":null,
+    "lastFoodPosition":null
+}
+"""
 class BasicStressTest(unittest.TestCase):
     def test_solution(self):
         action = simulate(humoid_json)
+        self.assertIn(action, Action.SET, msg="The action selected was {}".format(action))
+    def test_null_wolf(self):
+        action = simulate(humanoid_null_wolf)
         self.assertIn(action, Action.SET, msg="The action selected was {}".format(action))
 
 if __name__ == "__main__a":
