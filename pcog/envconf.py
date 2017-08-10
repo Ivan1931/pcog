@@ -1,93 +1,74 @@
 class Action(object):
+    """
+    Represents the possible policies that the agent can execute.
+    They are listed bellow along with their action ID codes given by QCog:
+
     FLEE = 8
     ATTACK = 9
     EXPLORE = 0
     EAT = 6
+    """
+    N = 3
+    FLEE, EXPLORE, ATTACK = range(N)
+    SET = set(range(N))
 
-    SET = set([
-            FLEE,
-            ATTACK,
-            EXPLORE,
-            EAT,
-        ])
+    @staticmethod
+    def qcog_action(a):
+        if a == Action.FLEE:
+            return 8
+        if a == Action.ATTACK:
+            return 9
+        if a == Action.EXPLORE:
+            return 0
+        raise ValueError("Unrecognised action")
 
-    N = len(SET)
+    @staticmethod
+    def action_name(a):
+        if a == Action.FLEE:
+            return "FLEE"
+        elif a == Action.ATTACK:
+            return "ATTACK"
+        elif a == Action.EXPLORE:
+            return "EXPLORE"
+        raise ValueError("Unknown action")
+
 
     @staticmethod
     def valid_action(a):
         return a in Action.SET
 
 
-class HealthState(object):
-    GOOD = 1
-    AVERAGE = 2
-    BAD = 3
+class HealthObservation(object):
+    N = 3
+    GOOD, OK, BAD = range(N)
+    SET = set(range(N))
 
-    SET = set([
-            GOOD,
-            BAD,
-            AVERAGE
-        ])
-
-    N = len(SET)
-
-    @staticmethod
-    def valid_state(h):
-        return h in HealthState.SET
 
 class FoodObservation(object):
-    FAR = 1
-    NEAR = 2
-    VERY_CLOSE = 3
-    UNKNOWN = 4
+    N = 4
+    UNKNOWN, FAR, NEAR, VERY_CLOSE = range(N)
+    SET = set(range(N))
 
-    SET = set([
-        FAR,
-        NEAR,
-        VERY_CLOSE,
-        UNKNOWN,
-    ])
 
-    N = len(SET)
+class WolfObservation(object):
+    N = 4
+    UNKNOWN, FAR, CLOSE, UNDER_ATTACK = range(N)
+    SET = set(range(N))
 
-class DangerObservation(object):
-    FAR = 1
-    CLOSE = 2
-    UNDER_ATTACK = 3
-    UNKNOWN = 4
 
-    SET = set([
-        FAR,
-        CLOSE,
-        UNDER_ATTACK,
-        UNKNOWN,
-    ])
+class DangerState(object):
+    N = 4
 
-    N = len(SET)
+    LOW, MEDIUM, HIGH, SEVERE = range(N)
 
-    @staticmethod
-    def valid_state(h):
-        return h in DangerObservation.SET
+    SET = set(range(N))
 
 
 class StaminaState(object):
-    GOOD = 1
-    AVERAGE = 2
-    BAD = 3
-
-    SET = set([
-        GOOD,
-        BAD,
-        AVERAGE
-    ])
-
-    N = len(SET)
+    N = 3
+    GOOD, AVERAGE, BAD = range(N)
+    SET = set(range(N))
 
     @staticmethod
     def valid_state(s):
         return s in StaminaState.SET
-
-
-class Config(object):
-    STATES = StaminaState.N * HealthState.N * DangerObservation.N
-    OBSERVATIONS = 2

@@ -1,85 +1,170 @@
-from deps import MDP
-from deps import POMDP
-from .envconf import HealthState, DangerObservation, Action
-
-# MODEL
-A_LISTEN = 0
-A_LEFT   = 1
-A_RIGHT  = 2
-
-TIG_LEFT = 0
-TIG_RIGHT = 1
+from .envconf import HealthObservation, DangerState, Action, WolfObservation
+from .humanoid import Humanoid
+from json import loads
+from .deps import MDP
+from .deps import POMDP
 
 
-def make_pcog_simulation(humanoid):
+def oi(wolf_proximity, health_observation):
+    return wolf_proximity * HealthObservation.N + health_observation
+
+
+def danger(s, w, h, a):
+    d = (w + h + a) / (WolfObservation.N + HealthObservation.N + Action.N)
+    if 0.0 < d < 0.25:
+        if s == DangerState.LOW:
+            return 1.0
+        elif s == DangerState.MEDIUM:
+            return 0.2
+        elif s == DangerState.HIGH:
+            return 0.1
+        else:
+            return 0.05
+    elif 0.25 < d < 0.5:
+        if s == DangerState.LOW:
+            return 0.2
+        elif s == DangerState.MEDIUM:
+            return 0.8
+        elif s == DangerState.HIGH:
+            return 0.2
+        else:
+            return 0.1
+    elif 0.5 < d < 0.75:
+        if s == DangerState.LOW:
+            return 0.1
+        elif s == DangerState.MEDIUM:
+            return 0.3
+        elif s == DangerState.HIGH:
+            return 0.3
+        else:
+            return 0.2
+    else:
+        if s == DangerState.LOW:
+            return 0.05
+        elif s == DangerState.MEDIUM:
+            return 0.3
+        elif s == DangerState.HIGH:
+            return 0.3
+        else:
+            return 0.7
+
+
+def find_transition(sf, a, si):
+    d = (si - sf) / DangerState.N
+    if 0.0 < d: # Chance of moving high danger to low danger
+        if a == Action.FLEE:
+            x = 1.0
+        elif a == Action.EXPLORE:
+            x = 0.5
+        else:
+            x = 0.1
+        return x / float(d)
+    elif d == 0:
+        if a == Action.EXPLORE:
+            return 0.5
+        else:
+            return 0.1
+    else: # Chance of moving from low danger to high danger
+        if a == Action.FLEE:
+            x = 0.1
+        elif a == Action.EXPLORE:
+            x = 0.5
+        else:
+            x = 1.0
+        return x / float(abs(d))
+
+
+def find_reward(sf, a, si):
+    if si < sf: # Penalise transitioning to higher danger
+        return -10.0
+    elif si == sf: # Reward staying in the same state
+        return 5.0
+    else: # Heavily reward reducing danger level
+        return 20.0
+
+
+def make_pcog_simulation():
     # Actions are: 0-listen, 1-open-left, 2-open-right
-    S = HealthState.N * DangerObservation.N
+    S = DangerState.N
     A = Action.N
-    O = DangerObservation.N
+    O = WolfObservation.N * HealthObservation.N
     model = POMDP.Model(O, S, A)
     transitions = [[[0 for x in xrange(S)] for y in xrange(A)] for k in xrange(S)]
     rewards = [[[0 for x in xrange(S)] for y in xrange(A)] for k in xrange(S)]
     observations = [[[0 for x in xrange(O)] for y in xrange(A)] for k in xrange(S)]
-    # Define transitions
-    for s in xrange(S):
-        transitions[s][A_LISTEN][s] = 1.0
-    # Moar transition definitions
-    for s in xrange(S):
-        for s1 in xrange(S):
-            transitions[s][A_LEFT ][s1] = 1.0 / S
-            transitions[s][A_RIGHT][s1] = 1.0 / S
+    for w in xrange(WolfObservation.N):
+        for h in xrange(HealthObservation.N):
+            o = oi(w, h)
+            for a in xrange(A):
+                for s in xrange(S):
+                    try:
+                        d = danger(s, w, h, a)
+                        observations[s][a][o] = d
+                    except IndexError as e:
+                        print("{} {}".format(w, h))
+                        print("{} {} {}".format(s, a, o))
+                        print("{} {} {}".format(S, A, O))
+                        raise e
 
-    # Observations
-    # If we listen, we guess right 85% of the time.
-    observations[TIG_LEFT ][A_LISTEN][TIG_LEFT ] = 0.85
-    observations[TIG_LEFT ][A_LISTEN][TIG_RIGHT] = 0.15
-    observations[TIG_RIGHT][A_LISTEN][TIG_RIGHT] = 0.85
-    observations[TIG_RIGHT][A_LISTEN][TIG_LEFT ] = 0.15
-    # Otherwise we get no information on the environment.
-    for s in xrange(S):
-        for o in xrange(O):
-            observations[s][A_LEFT ][o] = 1.0 / O
-            observations[s][A_RIGHT][o] = 1.0 / O
-    # Rewards
-    # Listening has a small penalty
-    for s in xrange(S):
-        for s1 in xrange(S):
-            rewards[s][A_LISTEN][s1] = -1.0
-    # Treasure has a decent reward, and tiger a bad penalty.
-    for s1 in xrange(S):
-        rewards[TIG_RIGHT][A_LEFT][s1] = 10.0
-        rewards[TIG_LEFT ][A_LEFT][s1] = -100.0
+    for a in xrange(A):
+        for s in xrange(S):
+            total_o = 0.0
+            for o in xrange(O):
+                total_o += observations[s][a][o]
+            for o in xrange(O):
+                observations[s][a][o] /= total_o
 
-        rewards[TIG_LEFT ][A_RIGHT][s1] = 10.0
-        rewards[TIG_RIGHT][A_RIGHT][s1] = -100.0
-    model.setTransitionFunction(transitions)
+    total_t = 0.0
+    for si in xrange(DangerState.N):
+        for a in xrange(Action.N):
+            for sf in xrange(DangerState.N):
+                t = find_transition(sf, a, si)
+                transitions[sf][a][si] = t
+                total_t += t
+
+    for sf in xrange(DangerState.N):
+        for a in xrange(Action.N):
+            total_s = 0.0
+            for si in xrange(DangerState.N):
+                total_s += transitions[sf][a][si]
+            for si in xrange(DangerState.N):
+                transitions[sf][a][si] /= total_s
+
+    for si in xrange(DangerState.N):
+        for a in xrange(Action.N):
+            for sf in xrange(DangerState.N):
+                rewards[sf][a][si] = find_reward(sf, a, si)
+
+
     model.setRewardFunction(rewards)
     model.setObservationFunction(observations)
-    return model
+    model.setTransitionFunction(transitions)
+    return model, observations, transitions, rewards
 
 
-def run_pcog_simulation():
-    model = make_pcog_simulation()
+def belief_state(humanoid, observations):
+    health = humanoid.get_health()
+    wolf = humanoid.get_wolf_proximity()
+    belief = [0.0 for s in xrange(DangerState.N)]
+    for s in xrange(DangerState.N):
+        belief[s] += observations[s][Action.EXPLORE][oi(wolf, health)]
+    total_b = sum(belief)
+    return map(lambda state: state / total_b, belief)
+
+
+def run_pcog_simulation(humanoid):
+    model, observations, transitions, rewards = make_pcog_simulation()
     model.setDiscount(0.95)
-    horizon = 15
+    horizon = 10 # 10 seconds in real time
     solver = POMDP.IncrementalPruning(horizon, 0.0)
     solution = solver(model)
-    policy = POMDP.Policy(2, 3, 2, solution[1])
-    b = [0.5, 0.5]
-    s = 0
+    policy = POMDP.Policy(DangerState.N, Action.N, HealthObservation.N * WolfObservation.N, solution[1])
+    b = belief_state(humanoid, observations)
     a, ID = policy.sampleAction(b, horizon)
-    totalReward = 0.0
-    for t in xrange(horizon - 1, -1, -1):
-        s1, o, r = model.sampleSOR(s, a)
-        totalReward += r
-        print("Timestep missing: " + str(t))
-        print("Total reward:     " + str(totalReward))
-        b = POMDP.updateBelief(model, b, a, o)
-        if t > policy.getH():
-            a, ID = policy.sampleAction(b, policy.getH())
-        else:
-            a, ID = policy.sampleAction(ID, o, t)
-        s = s1
+    return Action.qcog_action(a)
 
-if __name__ == "__main__":
-    run_pcog_simulation()
+
+def simulate(humanoid_string):
+    humanoid = Humanoid.from_json(humanoid_string)
+    action = run_pcog_simulation(humanoid)
+    return action

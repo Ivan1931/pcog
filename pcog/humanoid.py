@@ -1,13 +1,13 @@
 from typing import Tuple, Optional
 from json import loads
-from .envconf import HealthState, DangerObservation
+from .envconf import HealthObservation, WolfObservation
 
 import math
 
 def dist(a, b):
-    return math.sqrt(math.sqrt(a[0] - b[0]) +
-                     math.sqrt(a[1] - b[1]) +
-                     math.sqrt(a[2] - b[2]))
+    return math.sqrt(math.sqrt(math.pow(a[0] - a[0], 2.0)) +
+                     math.sqrt(math.pow(a[1] - b[1], 2.0)) +
+                     math.sqrt(math.pow(a[2] - b[2], 2.0)))
 
 class Humanoid(object):
     """
@@ -40,24 +40,24 @@ class Humanoid(object):
         self.wolf_position = None  # type: Optional[Tuple[float, float, float]]
         self.food_position = None  # type: Optional[Tuple[float, float, float]]
 
-    def get_danger_level(self):
+    def get_wolf_proximity(self):
         if self.wolf_position is None:
-            return DangerObservation.UNKNOWN
+            return WolfObservation.UNKNOWN
         d = dist(self.wolf_position, self.position)
         if 7.0 < d:
-            return DangerObservation.FAR
+            return WolfObservation.FAR
         elif 4.0 < d < 7.0:
-            return DangerObservation.CLOSE
+            return WolfObservation.CLOSE
         else:
-            return DangerObservation.UNDER_ATTACK
+            return WolfObservation.UNDER_ATTACK
 
-    def get_health_state(self):
+    def get_health(self):
         if 7.0 < self.health:
-            return DangerObservation.GOOD
+            return HealthObservation.GOOD
         elif 4.0 < self.health < 7.0:
-            return DangerObservation.AVERAGE
+            return HealthObservation.OK
         else:
-            return DangerObservation.BAD
+            return HealthObservation.BAD
 
     def get_hunger_level(self):
         pass
