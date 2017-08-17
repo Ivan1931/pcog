@@ -2,7 +2,10 @@ from typing import Tuple, Optional
 from json import loads
 from .envconf import HealthObservation, WolfObservation
 
+import logging
 import math
+
+logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
 
 def dist(a, b):
     return math.sqrt(math.sqrt(math.pow(a[0] - a[0], 2.0)) +
@@ -44,12 +47,18 @@ class Humanoid(object):
         if self.wolf_position is None:
             return WolfObservation.UNKNOWN
         d = dist(self.wolf_position, self.position)
-        if 7.0 < d:
-            return WolfObservation.FAR
-        elif 4.0 < d < 7.0:
-            return WolfObservation.CLOSE
+        if 15.0 < d:
+            proximity = WolfObservation.UNKNOWN
+        elif 5.0 <= d <= 15.0:
+            proximity = WolfObservation.FAR
+        elif 2.0 < d <= 5.0:
+            proximity = WolfObservation.CLOSE
         else:
-            return WolfObservation.UNDER_ATTACK
+            proximity = WolfObservation.UNDER_ATTACK
+        logging.info(
+            "Wolf Distance: {} - Proximity: {}".format(d, WolfObservation.as_string(proximity))
+        )
+        return proximity
 
     def get_health(self):
         if 7.0 < self.health:
@@ -80,7 +89,6 @@ class Humanoid(object):
     def from_json(json_string):
         # type: (str) -> Humanoid
         """
-
         :param json_string: Json string describing the various parameters of the game state
         :return: Humanoid based on the game state
         """

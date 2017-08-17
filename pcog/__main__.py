@@ -1,6 +1,7 @@
 import sys
 from json import loads
 from .agent import simulate
+from .envconf import Action
 import logging
 import SocketServer
 from threading import BoundedSemaphore
@@ -17,7 +18,7 @@ class PCogHandler(SocketServer.StreamRequestHandler):
             logging.info("{} wrote:".format(self.client_address[0]))
             logging.info(self.data)
             action = simulate(self.data)
-            logging.info("Selected action:{}".format(action))
+            logging.info("Selected action: {} = {}".format(Action.qcog_action_name(action), action))
             self.wfile.write("{}\n".format(action))
             self.wfile.flush()
             self.data = self.rfile.readline().strip()

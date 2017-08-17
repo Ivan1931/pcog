@@ -4,6 +4,9 @@ from json import loads
 from .deps import MDP
 from .deps import POMDP
 
+import logging
+
+logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
 
 def oi(wolf_proximity, health_observation):
     return wolf_proximity * HealthObservation.N + health_observation
@@ -53,7 +56,7 @@ def find_transition(sf, a, si):
     d = (si - sf) / DangerState.N
     if 0.0 < d: # Chance of moving high danger to low danger
         if a == Action.FLEE:
-            x = 1.0
+            x = 0.2
         elif a == Action.EXPLORE:
             x = 0.5
         else:
@@ -161,10 +164,10 @@ def run_pcog_simulation(humanoid):
     policy = POMDP.Policy(DangerState.N, Action.N, HealthObservation.N * WolfObservation.N, solution[1])
     b = belief_state(humanoid, observations)
     a, ID = policy.sampleAction(b, horizon)
-    return Action.qcog_action(a)
+    return a
 
 
 def simulate(humanoid_string):
     humanoid = Humanoid.from_json(humanoid_string)
     action = run_pcog_simulation(humanoid)
-    return action
+    return Action.qcog_action(action)
