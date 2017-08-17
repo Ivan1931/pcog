@@ -23,6 +23,16 @@ class Action(object):
         raise ValueError("Unrecognised action")
 
     @staticmethod
+    def qcog_action_name(a):
+        if a == 8:
+            return "FLEE"
+        elif a == 9:
+            return "ATTACK"
+        elif a == 0:
+            return "EXPLORE"
+        raise ValueError("Unkown action")
+
+    @staticmethod
     def action_name(a):
         if a == Action.FLEE:
             return "FLEE"
@@ -54,6 +64,17 @@ class WolfObservation(object):
     N = 4
     UNKNOWN, FAR, CLOSE, UNDER_ATTACK = range(N)
     SET = set(range(N))
+
+    @staticmethod
+    def as_string(o):
+        if o == WolfObservation.UNKNOWN:
+            return "UNKNOWN"
+        elif o == WolfObservation.FAR:
+            return "FAR"
+        elif o == WolfObservation.CLOSE:
+            return "CLOSE"
+        elif o == WolfObservation.UNDER_ATTACK:
+            return "UNDER_ATTACK"
 
 
 class DangerState(object):
