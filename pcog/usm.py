@@ -25,19 +25,26 @@ class Instance(object):
         self.next = instance
         instance.previous = self
 
+    def eql_i(self, that):
+        return (isinstance(that, Instance)
+            and self.observation == that.observation
+            and self.action      == that.action)
+
 
 class USMNode(object):
     def __init__(self):
-        self.is_fringe = True
+        self.is_fringe = False
         self.children = {}
         self.instances = []
         self.parent = None
-
 
     def __str__(self):
         return "r"
 
 
+    def set_fringe(self, fringe):
+        self.is_fringe = fringe
+        
     def child(self, key):
         return self.children.get(key)
 
@@ -100,28 +107,32 @@ class ObservationNode(USMNode):
 
 
 class UtileSuffixMemory(object):
-    def __init__(self, window_size=5):
+    def __init__(self, window_size=5, fringe_depth=2, gamma=0.3):
         self.root = USMNode()
         self.instances = []
         self.states = set()
         self.window_size = window_size
+        self.fringe_depth = 2
+        self.gamma = gamma
 
     def insert(self, instance):
-        if len(self.instances) != 0: 
+        if 0 < len(self.instances): 
             self.instances[-1].add_front(instance)
         self.instances.append(instance)
         state = self._insert()
         if state.is_leaf():
             self.states.add(state)
-        elif current in self.states:
+        elif state in self.states:
             self.states.remove(state)
         instance.leaf = state
         return state
 
-    def _insert(self):
-        current = self.root
-        for i in reversed(self.instances[-self.window_size:]):
+    def _insert_instances(self, start_node, instances, fringe=False):
+        current = start_node
+        for i in instances:
             action, observation = i.usm_nodes()
+            action.set_fringe(fringe)
+            observation.set_fringe(fringe)
             if action.action in current.children:
                 current = current.children[action.action]
             else:
@@ -135,13 +146,41 @@ class UtileSuffixMemory(object):
                 current = observation
         return current
 
+    def _insert_leaf(self, suffix):
+        return self._insert_instances(self.root, reversed(suffix), False)
+
+
+    def _insert_fringe(self, suffix):
+        presuffix = suffix[0:self.fringe_depth]
+        post_suffix = suffix[self.fringe_depth:]
+        for state in self.states:
+            # Match prefix of the suffix with the suffix of each state
+            # If we can do the match then add the instance suffix to the fringe
+            # With the suffix node as root
+            count = 0
+            instance = state.instances[0]
+            equal = True
+            while equal and instance and count < self.fringe_depth:
+                equal = instance.eql_i(presuffix[count])
+                instance = instance.previous
+                count += 1
+            if equal:
+                self._insert_instances(state, post_suffix, True)
+    
+
+    def _insert(self):
+        suffix = self.instances[-self.window_size:]
+        leaf = self._insert_leaf(suffix)
+        self._insert_fringe(suffix)
+        return leaf
+
 
     def pr(self, s1, s2, action):
         count = 0
         total = 0
         current = s1
         while current is not self.root:
-            if type(current) is ActionNode:
+            if isinstance(current, ActionNode):
                 if current.action == action:
                     for i in current.instances:
                         total += 1
@@ -149,7 +188,8 @@ class UtileSuffixMemory(object):
                         if successor and successor.leaf is s2:
                             count += 1
             current = current.parent
-        if total == 0.0: return 0.0
+        if total == 0.0: 
+            return 0.0
         return float(count) / float(total)
 
     def display(self):
@@ -157,11 +197,10 @@ class UtileSuffixMemory(object):
         queue = deque([])
         queue.append((self.root, 0))
         max_level = 0
-        while len(queue) != 0:
+        while 0 < len(queue):
             node, level = queue.popleft()
             levels[level].append(node)
             max_level = max(level, max_level)
-            children = deque([])
             for child in node.children.values():
                 queue.append((child, level+1))
         result = ""
