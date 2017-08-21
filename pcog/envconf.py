@@ -1,3 +1,11 @@
+from random import choice
+
+class Change(object):
+    N = 3
+    LESS, SAME, MORE = range(N)
+    SET = set(range(N))
+
+
 class Action(object):
     """
     Represents the possible policies that the agent can execute.
@@ -41,6 +49,14 @@ class Action(object):
         elif a == Action.EXPLORE:
             return "EXPLORE"
         raise ValueError("Unknown action")
+
+
+    @staticmethod
+    def random_action():
+        """
+        Chooses a random action from set of available actions
+        """
+        return choice(list(Action.SET))
 
 
     @staticmethod

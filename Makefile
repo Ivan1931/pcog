@@ -6,3 +6,6 @@ watch:
 
 install:
 	pip install . --upgrade
+
+run:
+	python -m pcog pcog:__main__
