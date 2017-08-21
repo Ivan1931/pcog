@@ -3,6 +3,12 @@ Main entry point for PCog. Can open two types of agents - a model learning agent
 or a hand crafted POMPD based agent
 """
 import sys
+<<<<<<< HEAD
+=======
+from json import loads
+from .agent import simulate
+from .envconf import Action
+>>>>>>> 2e1a220e90c4ab17a2c4f086caf480f1e52212b0
 import logging
 import SocketServer
 import datetime
