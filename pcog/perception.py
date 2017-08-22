@@ -58,6 +58,11 @@ def perceive(current, previous):
     return distance, health, predators
 
 
+def preceive_instance(current, previous):
+    distance, health, predators = perceive(current, previous)
+    reward = perception_reward(current, previous)
+
+
 def sigmoid(x):
     return math.exp(x) / (math.exp(x) + 1.0)
 

@@ -107,13 +107,20 @@ class ObservationNode(USMNode):
 
 
 class UtileSuffixMemory(object):
-    def __init__(self, window_size=5, fringe_depth=2, gamma=0.3):
-        self.root = USMNode()
+    def __init__(self,
+                 window_size=5,
+                 fringe_depth=2,
+                 gamma=0.3,
+                 known_actions=None,
+                 known_observations=None):
+        self._root = USMNode()
         self.instances = []
-        self.states = set()
+        self._states = set()
         self.window_size = window_size
-        self.fringe_depth = 2
+        self.fringe_depth = fringe_depth
         self.gamma = gamma
+        self._action_space = known_actions
+        self._observation_space = known_observations
 
     def insert(self, instance):
         if 0 < len(self.instances): 
@@ -121,9 +128,9 @@ class UtileSuffixMemory(object):
         self.instances.append(instance)
         state = self._insert()
         if state.is_leaf():
-            self.states.add(state)
-        elif state in self.states:
-            self.states.remove(state)
+            self._states.add(state)
+        elif state in self._states:
+            self._states.remove(state)
         instance.leaf = state
         return state
 
@@ -147,13 +154,13 @@ class UtileSuffixMemory(object):
         return current
 
     def _insert_leaf(self, suffix):
-        return self._insert_instances(self.root, reversed(suffix), False)
+        return self._insert_instances(self._root, reversed(suffix), False)
 
 
     def _insert_fringe(self, suffix):
         presuffix = suffix[0:self.fringe_depth]
         post_suffix = suffix[self.fringe_depth:]
-        for state in self.states:
+        for state in self._states:
             # Match prefix of the suffix with the suffix of each state
             # If we can do the match then add the instance suffix to the fringe
             # With the suffix node as root
@@ -175,11 +182,34 @@ class UtileSuffixMemory(object):
         return leaf
 
 
+    def has_actions(self):
+        return 0 < len(self._action_space)
+
+
+    def has_observations(self):
+        return 0 < len(self._observation_space)
+
+    def get_actions(self):
+        return self._action_space
+
+
+    def get_observations(self):
+        return self._observation_space
+
+
+    def get_states(self):
+        return self._states
+
+
+    def get_root(self):
+        return self._root
+
+
     def pr(self, s1, s2, action):
         count = 0
         total = 0
         current = s1
-        while current is not self.root:
+        while current is not self._root:
             if isinstance(current, ActionNode):
                 if current.action == action:
                     for i in current.instances:
@@ -192,10 +222,21 @@ class UtileSuffixMemory(object):
             return 0.0
         return float(count) / float(total)
 
+
+    def observation_fn(self, state, action, observation):
+        if len(self.instances):
+            raise ValueError("Attempted to find the observation function on USM with no instances")
+        count = 0
+        for i in self.instances:
+            if action == i.action and observation == i.observation and state == i.leaf:
+                count += 1
+        return float(count) / float(len(self.instances))
+
+
     def display(self):
         levels = defaultdict(list)
         queue = deque([])
-        queue.append((self.root, 0))
+        queue.append((self._root, 0))
         max_level = 0
         while 0 < len(queue):
             node, level = queue.popleft()

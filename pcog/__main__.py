@@ -12,17 +12,18 @@ from .perception import perceive, process, perception_reward
 from .usm import UtileSuffixMemory, Instance
 
 logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
-logging.info("Session begins: {}".format(datetime.datetime.now()))
+logger = logging.getLogger(__name__)
+logger.info("Session begins: {}".format(datetime.datetime.now()))
 
 class PCogHandler(SocketServer.StreamRequestHandler):
     def handle(self):
-        logging.info("Handling pcog connection request")
+        logger.info("Handling pcog connection request")
         self.data = self.rfile.readline().strip()
         while self.data:
-            logging.info("{} wrote:".format(self.client_address[0]))
-            logging.info(self.data)
+            logger.info("{} wrote:".format(self.client_address[0]))
+            logger.info(self.data)
             action = simulate(self.data)
-            logging.info("Selected action: {} = {}".format(Action.qcog_action_name(action), action))
+            logger.info("Selected action: {} = {}".format(Action.qcog_action_name(action), action))
             self.wfile.write("{}\n".format(action))
             self.wfile.flush()
             self.data = self.rfile.readline().strip()
@@ -38,7 +39,7 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
         return self.rfile.readline().strip()
 
     def send_action(self, action):
-        logging.info("Sending action: %d = %s", 
+        logger.info("Sending action: %d = %s", 
                     Action.qcog_action(action), 
                     Action.action_name(action))
         action = Action.qcog_action(action)
@@ -47,13 +48,13 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
 
 
     def log_perception(self):
-        logging.info("Perception: %s received for action: %s", 
+        logger.info("Perception: %s received for action: %s", 
                       str(self.perception), 
                       Action.action_name(self.action))
 
     def handle(self):
-        logging.info("Handling pcog model learning connection request")
-        logging.info("Connection address: {}".format(self.client_address[0]))
+        logger.info("Handling pcog model learning connection request")
+        logger.info("Connection address: {}".format(self.client_address[0]))
         self.send_action(Action.random_action())
         self.past = process(self.get_line())
         self.action = Action.random_action()
@@ -67,7 +68,7 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
             reward=perception_reward(self.recent, self.past),
         ))
         exploration_iterations = 1000
-        logging.info("Starting Agent loop with %d iterations of exploration", exploration_iterations)
+        logger.info("Starting Agent loop with %d iterations of exploration", exploration_iterations)
         while self.recent:
             self.log_perception()
             if False and exploration_iterations < 0:

@@ -10,7 +10,7 @@ def _get_color(node):
         return 'b'
 
 def generate_graph(usm):
-    current = usm.root
+    current = usm.get_root()
     G = nx.DiGraph()
     labels = {}
     idx = 0
@@ -34,10 +34,16 @@ def draw_usm(usm, show=True, save_path="graph.png"):
                save_path=save_path, 
                colors=colors)
 
-def draw_graph(G, labels, colors, show, save_path):
+def update_usm_drawing(usm):
+    G, labels, colors = generate_graph(usm)
+    draw_graph(G, labels, show=True, save_path=None, close_plot=False)
+
+
+def draw_graph(G, labels, colors, show, save_path, close_plot=True):
     nx.draw(G, pos=graphviz_layout(G, prog='dot'), labels=labels, arrows=True, node_color=colors)
     if show:
         plt.show()
     else:
         plt.savefig(save_path)
-    plt.close()
+    if close_plot:
+        plt.close()

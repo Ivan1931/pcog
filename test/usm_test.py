@@ -29,24 +29,24 @@ class USMTest(unittest.TestCase):
     def test_insertion(self):
         tree = self._generate_test_usm()
         print(tree.display())
-        a1 = tree.root.child('a1')
+        a1 = tree._root.child('a1')
         self.assertEqual(a1.reward(), 1.0)
 
 
     def test_pr(self):
         tree = self._generate_test_usm()
-        for s1 in tree.states:
-            for s2 in tree.states:
+        for s1 in tree.get_states():
+            for s2 in tree.get_states():
                 if s1 is not s2:
                     print(tree.pr(s1, s2, "a1"))
                     print(tree.pr(s1, s2, "a2"))
         tree = self._generate_random_usm(25)
         draw_usm(tree)
         print("*" * 10)
-        for s1 in tree.states:
+        for s1 in tree.get_states():
             t1 = 0.0
             t2 = 0.0
-            for s2 in tree.states:
+            for s2 in tree.get_states():
                 if s1 is not s2:
                     p1 = tree.pr(s1, s2, "a1")
                     t1 += p1
