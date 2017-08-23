@@ -7,9 +7,10 @@ import logging
 import SocketServer
 import datetime
 from .agent import simulate
-from .envconf import Action
+from .envconf import Action, Change
 from .perception import perceive, process, perception_reward
 from .usm import UtileSuffixMemory, Instance
+from .model_learn_agent import ModelLearnAgent
 
 logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,44 +48,24 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
         self.wfile.flush()
 
 
-    def log_perception(self):
-        logger.info("Perception: %s received for action: %s", 
-                      str(self.perception), 
-                      Action.action_name(self.action))
-
     def handle(self):
         logger.info("Handling pcog model learning connection request")
         logger.info("Connection address: {}".format(self.client_address[0]))
-        self.send_action(Action.random_action())
-        self.past = process(self.get_line())
-        self.action = Action.random_action()
-        self.send_action(self.action)
-        self.recent = process(self.get_line())
-        self.perception = perceive(self.recent, self.past)
-        self.memory = UtileSuffixMemory()
-        self.memory.insert(Instance(
-            action=self.action,
-            observation=self.perception,
-            reward=perception_reward(self.recent, self.past),
+        self.agent = ModelLearnAgent(usm=UtileSuffixMemory(
+            known_actions=list(Action.SET),
+            known_observations=[(i, j, k) for i in Change.SET for j in Change.SET for k in Change.SET]
         ))
-        exploration_iterations = 1000
-        logger.info("Starting Agent loop with %d iterations of exploration", exploration_iterations)
+        self.recent = self.get_line()
+        self.send_action(self.agent.get_decision())
+        logger.info("Starting agent exploration loop")
         while self.recent:
-            self.log_perception()
-            if False and exploration_iterations < 0:
-                pass
-            else:
-                self.action = Action.random_action()
-                self.send_action(self.action)
-                exploration_iterations -= 1
-            self.memory.insert(Instance(
-                action=self.action,
-                observation=self.perception,
-                reward=perception_reward(self.recent, self.past),
-            ))
-            self.perception = perceive(self.recent, self.past)
-            self.past = self.recent
-            self.recent = process(self.get_line())
+            raw_perception = process(self.recent)
+            self.agent.add_perception(
+                raw_perception
+            )
+            self.send_action(self.agent.get_decision())
+            self.recent = self.get_line()
+
 
 def main(args=None):
     HOST, PORT = "localhost", 9999

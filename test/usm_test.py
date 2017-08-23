@@ -2,6 +2,7 @@ import unittest
 import random
 from pcog.usm import *
 from pcog.usm_draw import *
+from pcog.usm_pomdp import build_pomdp_model, solve
 
 class USMTest(unittest.TestCase):
     def _generate_test_usm(self):
@@ -30,7 +31,7 @@ class USMTest(unittest.TestCase):
         tree = self._generate_test_usm()
         print(tree.display())
         a1 = tree._root.child('a1')
-        self.assertEqual(a1.reward(), 1.0)
+        self.assertEqual(a1.reward('a1'), 1.0)
 
 
     def test_pr(self):
@@ -63,4 +64,38 @@ class USMTest(unittest.TestCase):
         draw_usm(tree)
 
 
-if __name__ == "__main__": unittest.main()
+    def _make_instance_pattern(self):
+        return [ Instance("a1","o1", 1.0), Instance("a2","o2", 1.0), Instance("a1","o3", 1.0) ]
+
+
+    def test_derive_pomdp_with_duplicate_instance_sequence(self):
+        pattern1 = self._make_instance_pattern()
+        pattern2 = self._make_instance_pattern()
+        actions = ["a1", "a2"]
+        observations = ["o1", "o2","o3"]
+        usm = UtileSuffixMemory(
+            known_actions=actions,
+            known_observations=observations,
+            window_size=3
+        )
+        for p in pattern1:
+            usm.insert(p)
+        for p in pattern2:
+            usm.insert(p)
+        pomdp = build_pomdp_model(usm)
+
+
+    def test_derive_pomdp(self):
+        tree = self._generate_test_usm()
+        tree._action_space = ["a1", "a2"]
+        tree._observation_space = ["o1", "o2", "o3"]
+        pomdp = build_pomdp_model(tree)
+        action = solve(tree, pomdp, [
+            Instance("a1", "o2", 1.0),
+            Instance("a2", "o1", 1.0)
+        ])
+        self.assertIn(action, range(len(tree.get_actions())))
+
+
+if __name__ == "__main__": 
+    unittest.main()

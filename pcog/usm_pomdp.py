@@ -1,5 +1,10 @@
+import logging
+
 from .deps import MDP
 from .deps import POMDP
+
+logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def transition_function(usm):
     if not usm.has_actions():
@@ -8,8 +13,7 @@ def transition_function(usm):
     for i, s1 in enumerate(usm.get_states()):
         for j, action in enumerate(usm.get_actions()):
             for k, s2 in enumerate(usm.get_states()):
-                if s1 is not s2:
-                    transitions[i][j][k] = usm.pr(s1, s2, action)
+                transitions[i][j][k] = usm.pr(s1, s2, action)
     return transitions
 
 
@@ -20,11 +24,11 @@ def observation_function(usm):
     """
     if not usm.has_observations():
         raise ValueError("USM does not have an observation space")
-    observations = [[[0.0 for o in usm.get_observations()] for a in usm.get_actions()] for s in usm.get_actions()]
+    observations = [[[0.0 for o in usm.get_observations()] for a in usm.get_actions()] for s in usm.get_states()]
     for s, state in enumerate(usm.get_states()):
         for a, action in enumerate(usm.get_actions()):
-            for o, observation in enumerate(usm.get_observations):
-                observation[s][a][o] = usm.observation_fn(state, action, observation)
+            for o, observation in enumerate(usm.get_observations()):
+                observations[s][a][o] = usm.observation_fn(state, action, observation)
     return observations
 
 
@@ -36,7 +40,7 @@ def reward_function(usm):
     For USM we ignore the incident state and only care about the start state. 
     """
     rewards = [[[0.0 for s1 in usm.get_states()] for r in usm.get_actions()] for s2 in usm.get_states()]
-    for i, state in enumerate(usm.get_get_states()()):
+    for i, state in enumerate(usm.get_states()):
         for j, action in enumerate(usm.get_actions()):
             reward = state.reward(action)
             for k in range(len(usm.get_states())):
@@ -44,8 +48,14 @@ def reward_function(usm):
     return rewards
 
 
-def belief_state(usm):
-    return 1.0
+def belief_state(usm, past_perceptions):
+    leaves = usm.traverse(past_perceptions)
+    p = float(len(leaves)) / len(usm.get_actions())
+    belief = [0.0 for s in usm.get_states()]
+    for idx, state in enumerate(usm.get_states()):
+        if s in leaves:
+            belief[idx] = p
+    return belief
 
 
 def build_pomdp_model(usm):
@@ -55,23 +65,24 @@ def build_pomdp_model(usm):
     reward = reward_function(usm)
     transition = transition_function(usm)
     observation = observation_function(usm)
+    logger.info("Reward function:\n{}".format(reward))
+    logger.info("Transition function:\n{}".format(transition))
+    logger.info("Observation function:\n{}".format(observation))
     model = POMDP.Model(O, S, A)
     model.setRewardFunction(reward)
-    model.setObservationFunction(observation)
     model.setTransitionFunction(transition)
+    model.setObservationFunction(observation)
     model.setDiscount(usm.gamma)
     return model
 
 
-def solve(usm, model, belief_nodes=1000, horizon=10, episolon=0.03):
-    solver = POMDP.PBVI(belief_nodes, horizon, episolon)
-    solution = solver(model)
+def solve(usm, model, past_perceptions, belief_nodes=1000, horizon=10, episolon=0.03):
+    solver = POMDP.POMCPModel(model, belief_nodes, 1000, 10000.0)
     S = len(usm.get_states())
     A = len(usm.get_actions())
     O = len(usm.get_observations())
-    policy = POMDP.Policy(S, A, O, solution[1])
-    b = belief_state(usm)
-    a, _ = policy.sampleAction(b, horizon)
+    # policy = POMDP.Policy(S, A, O, solution[1])
+    a = solver.sampleAction(belief_state(usm, past_perceptions), horizon)
     return a
 
 def plan_off_usm(usm, last_precept):
