@@ -16,6 +16,7 @@ logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info("Session begins: {}".format(datetime.datetime.now()))
 
+
 class PCogHandler(SocketServer.StreamRequestHandler):
     def handle(self):
         logger.info("Handling pcog connection request")

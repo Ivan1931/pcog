@@ -2,18 +2,27 @@ import logging
 
 from .deps import MDP
 from .deps import POMDP
+from .usm import UtileSuffixMemory
+from typing import List
 
 logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def transition_function(usm):
+    # type: (UtileSuffixMemory) -> List[List[List[float]]]
+    """
+    Method extracts the transition funciton information that we can use to form a POMDP.
+    The transition function is a 2D array of probability distributions over the sets of all states.
+    :param usm: USM node which we extract the transition function
+    :return: 3D transition function array
+    """
     if not usm.has_actions():
         raise ValueError("USM does not have an action space")
     transitions = [[[0.0 for s1 in usm.get_states()] for r in usm.get_actions()] for s2 in usm.get_states()]
     for i, s1 in enumerate(usm.get_states()):
         for j, action in enumerate(usm.get_actions()):
-            for k, s2 in enumerate(usm.get_states()):
-                transitions[i][j][k] = usm.pr(s1, s2, action)
+            transitions[i][j] = usm.transition_for(s1, action)
     return transitions
 
 
@@ -50,15 +59,36 @@ def reward_function(usm):
 
 def belief_state(usm, past_perceptions):
     leaves = usm.traverse(past_perceptions)
-    p = float(len(leaves)) / len(usm.get_actions())
+    if len(leaves) == 0:
+        # Edge case for when we don't find any related leaves (IE we have like one step that matches nothing )
+        logger.info("Belief state could not be derived for: %s", str(past_perceptions))
+        p = 1.0 / float(len(usm.get_states()))
+        return [p for s in usm.get_states()]
+    else:
+        p = 1.0 / float(len(leaves))
     belief = [0.0 for s in usm.get_states()]
     for idx, state in enumerate(usm.get_states()):
-        if s in leaves:
+        if state in leaves:
             belief[idx] = p
     return belief
 
 
+def _function_sanity_test(func):
+    offending = []
+    for i, x in enumerate(func):
+        for j, y in enumerate(x):
+            if sum(y) != 1.0:
+                return offending.append((i, j))
+    return offending
+
+
 def build_pomdp_model(usm):
+    # type: (UtileSuffixMemory) -> POMDP.Model
+    """
+    Creates a POMDP model from a Utile Suffix Memory
+    :param usm: Utile suffix memory to use in POMDP
+    :return: POMDP
+    """
     S = len(usm.get_states())
     A = len(usm.get_actions())
     O = len(usm.get_observations())

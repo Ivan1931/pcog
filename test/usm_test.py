@@ -1,8 +1,10 @@
 import unittest
 import random
+import pickle
 from pcog.usm import *
 from pcog.usm_draw import *
-from pcog.usm_pomdp import build_pomdp_model, solve
+from pcog.usm_pomdp import build_pomdp_model, solve, belief_state
+
 
 class USMTest(unittest.TestCase):
     def _generate_test_usm(self):
@@ -12,7 +14,8 @@ class USMTest(unittest.TestCase):
             Instance("a2", "o1", 1.0),
             Instance("a1", "o3", 1.0),
         ]
-        tree = UtileSuffixMemory()
+        tree = UtileSuffixMemory(known_actions=["a1", "a2"], 
+                                 known_observations=["o1", "o2", "o3"])
         for i in aba:
             tree.insert(i)
         return tree
@@ -82,8 +85,15 @@ class USMTest(unittest.TestCase):
             usm.insert(p)
         for p in pattern2:
             usm.insert(p)
+        # draw_usm(usm)
         pomdp = build_pomdp_model(usm)
 
+    def test_live_usm(self):
+        with open('test/data/test_usm', 'r') as f:
+            usm = pickle.load(f)
+            # draw_usm(usm)
+            pomdp = build_pomdp_model(usm)
+            self.assertEqual(True, True)
 
     def test_derive_pomdp(self):
         tree = self._generate_test_usm()
@@ -96,6 +106,12 @@ class USMTest(unittest.TestCase):
         ])
         self.assertIn(action, range(len(tree.get_actions())))
 
+    def test_derive_belief(self):
+        usm = self._generate_test_usm()
+        bs = belief_state(usm, [
+            Instance("a1", "o3", 1.0),
+        ])
+        self.assertAlmostEqual(sum(bs), 1.0)
 
 if __name__ == "__main__": 
     unittest.main()

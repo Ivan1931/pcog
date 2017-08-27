@@ -68,6 +68,8 @@ class ModelLearnAgent(object):
         if self.max_exploration_iterations < self._iterations:
             if not self.model:
                 self.model = build_pomdp_model(self.usm)
+            if len(self.usm.get_instances()) == 0:
+                raise ValueError("Attempting to plan with a model that has no perceptions")
             return solve(self.usm, 
                          self.model, 
                          self.usm.get_instances()[-self._perception_window:])

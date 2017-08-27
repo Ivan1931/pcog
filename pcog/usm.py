@@ -10,6 +10,7 @@ class Instance(object):
         self.next = None
         self.previous = None
 
+
     def usm_nodes(self):
         act, obs = ActionNode(self.action), ObservationNode(self.observation)
         act.add_instance(self)
@@ -41,6 +42,7 @@ class USMNode(object):
         self.children = {}
         self.instances = []
         self.parent = None
+
 
     def __str__(self):
         return "r"
@@ -143,8 +145,14 @@ class UtileSuffixMemory(object):
         """
         assert(not node.is_fringe)
         while node is not self._root:
-            node.set_fringe(True)
+            node.set_fringe(False)
             node = node.parent
+            if node is not self._root:
+                # If the node was a leaf node before the fringe insertion
+                # we should remove it since it's no longer a valid state
+                if node in self._states:
+                    self._states.remove(node)
+
 
     def insert(self, instance):
         if instance in self.instances:
@@ -165,18 +173,19 @@ class UtileSuffixMemory(object):
             action, observation = i.usm_nodes()
             action.set_fringe(fringe)
             observation.set_fringe(fringe)
-            if action.action in current.children:
+            if i.action in current.children:
                 current = current.children[action.action]
             else:
                 current.children[action.action] = action
                 current.add_child(action.action, action)
                 current = action
-            if observation.observation in current.children:
+            if i.observation in current.children:
                 current = current.children[observation.observation]
             else:
                 current.add_child(observation.observation, observation)
                 current = observation
         return current
+
 
     def _insert_leaf(self, suffix):
         return self._insert_instances(self._root, reversed(suffix), False)
@@ -214,6 +223,7 @@ class UtileSuffixMemory(object):
     def has_observations(self):
         return 0 < len(self._observation_space)
 
+
     def get_actions(self):
         return self._action_space
 
@@ -239,21 +249,24 @@ class UtileSuffixMemory(object):
 
 
     def traverse(self, instances):
+        if len(instances) < 1:
+            raise ValueError("You cannot traverse the tree with empty instances")
         current = self.get_root()
         for i in instances:
-            if current.is_fringe:
-                return [current.parent]
             if current.is_leaf():
                 return [current]
             if i.action in current.children:
                 current = current.children[i.action]
             else:
-                return self._leaves(current)
+                return self._leaves(current.parent)
             if i.observation in current.children:
                 current = current.children[i.observation]
             else:
                 return self._leaves(current)
-                
+        if current.is_leaf():
+            return [current]
+        else:
+            return self._leaves(current)
 
     
     def _tau(self, state, action):
@@ -265,6 +278,45 @@ class UtileSuffixMemory(object):
             current = current.parent
         return instances
 
+
+    def transition_for(self, incident_state, action):
+        """
+        Calculates a probability distribution over the state space which
+        represents the likelyhood of moving from indicent state to any other
+        state from a given action.
+        :param incident_state: State that we are travelling from
+        :param action: Action that we are considering
+        :return: Array which represents a probability distribution - always sums to 1
+        """
+        l = len(self.get_states())
+        transitions = [None for _ in range(l)]
+        tau = self._tau(incident_state, action)
+        idx = 0
+        leaf_count = 0.0
+        for i in tau:
+            if i.next and i.next.get_node().is_leaf():
+                leaf_count += 1.0
+        if leaf_count <= 0.0:
+            p = 1.0 / len(self.get_states())
+            return [p for _ in range(l)]
+        for arrival_state in self.get_states():
+            equal_count = 0.0
+            for i in tau:
+                """
+                Within _tau there are two possibilities:
+                arrival_state is equal to the leaf of the successor instance to the instance
+                It is not
+                Since some instances may be associated with internal nodes it actually makes sense to only
+                consider instances that map to a leaf node which is a another state
+                """
+                if i.next and i.next.get_node().is_leaf():
+                    if i.next.get_node() is arrival_state:
+                        equal_count += 1.0
+            transitions[idx] = equal_count / leaf_count
+            idx += 1
+        print(transitions)
+        assert(sum(transitions) == 1.0)
+        return transitions
 
     def pr(self, s1, s2, action):
         """
@@ -278,11 +330,13 @@ class UtileSuffixMemory(object):
         if len(tau) == 0:
             return 1.0 / float(len(self.get_states()))
         total = 0.0
+        count = 0.0
         for i in tau:
-            if i.get_node() is s2:
-                total += 1.0
+            if i.next and i.next.get_node().is_leaf():
+                count += 1.0
+                if i.next.get_node() is s2:
+                    total += 1.0
         return total / float(len(tau))
-
 
 
     def observation_fn(self, state, action, observation):
