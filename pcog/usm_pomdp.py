@@ -4,6 +4,7 @@ from .deps import MDP
 from .deps import POMDP
 from .usm import UtileSuffixMemory
 from typing import List
+import pickle
 
 logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,11 +34,13 @@ def observation_function(usm):
     """
     if not usm.has_observations():
         raise ValueError("USM does not have an observation space")
-    observations = [[[0.0 for o in usm.get_observations()] for a in usm.get_actions()] for s in usm.get_states()]
+    observations = [[[0.0 for _ in usm.get_observations()] for _ in usm.get_actions()] for _ in usm.get_states()]
     for s, state in enumerate(usm.get_states()):
         for a, action in enumerate(usm.get_actions()):
-            for o, observation in enumerate(usm.get_observations()):
-                observations[s][a][o] = usm.observation_fn(state, action, observation)
+            observation_dist = usm.observation_for(state=state, action=action)
+            if sum(observation_dist) != 1.0:
+                pass
+            observations[s][a] = observation_dist
     return observations
 
 

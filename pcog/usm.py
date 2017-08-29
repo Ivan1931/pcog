@@ -1,5 +1,22 @@
 from collections import deque, defaultdict
+from random import randint
 
+EPSILON = 0.0000001
+
+
+def normalise_to_one(numbers):
+    s = sum(numbers)
+    i = randint(0, len(numbers)-1)
+    if s == 1.0:
+        return numbers
+    elif s < 1.0:
+        d = 1.0 - s
+        numbers[i] += d
+        return numbers
+    else:
+        d = s - 1.0
+        numbers[i] -= d
+        return numbers
 
 class Instance(object):
     def __init__(self, action, observation, reward):
@@ -215,38 +232,29 @@ class UtileSuffixMemory(object):
         self._insert_fringe(suffix)
         return leaf
 
-
     def has_actions(self):
         return 0 < len(self._action_space)
-
 
     def has_observations(self):
         return 0 < len(self._observation_space)
 
-
     def get_actions(self):
         return self._action_space
-
 
     def get_observations(self):
         return self._observation_space
 
-
     def get_states(self):
         return self._states
-
 
     def get_root(self):
         return self._root
 
-
     def get_instances(self):
         return self.instances
 
-
     def _leaves(self, internal_node):
         return [i.get_node() for i in internal_node.instances if i.get_node().is_leaf()]
-
 
     def traverse(self, instances):
         if len(instances) < 1:
@@ -268,7 +276,6 @@ class UtileSuffixMemory(object):
         else:
             return self._leaves(current)
 
-    
     def _tau(self, state, action):
         instances = []         
         current = state
@@ -277,7 +284,6 @@ class UtileSuffixMemory(object):
                 instances += current.instances
             current = current.parent
         return instances
-
 
     def transition_for(self, incident_state, action):
         """
@@ -314,9 +320,10 @@ class UtileSuffixMemory(object):
                         equal_count += 1.0
             transitions[idx] = equal_count / leaf_count
             idx += 1
-        print(transitions)
-        assert(sum(transitions) == 1.0)
-        return transitions
+        x = sum(transitions)
+        if EPSILON <= abs(x - 1.0):
+            raise ValueError("Transition function is not close enough to one")
+        return normalise_to_one(transitions)
 
     def pr(self, s1, s2, action):
         """
@@ -338,7 +345,6 @@ class UtileSuffixMemory(object):
                     total += 1.0
         return total / float(len(tau))
 
-
     def observation_fn(self, state, action, observation):
         if len(self.instances) == 0:
             raise ValueError("Attempted to find the observation function on USM with no instances")
@@ -353,6 +359,28 @@ class UtileSuffixMemory(object):
             return 1.0 / float(len(self.get_observations()))
         return count / observed_count
 
+    def observation_for(self, state, action):
+        observations = [None for _ in self.get_observations()]
+        total_possible = 0.0
+        for i in self.instances:
+            if i.get_node() is state and i.action == action:
+                total_possible += 1.0
+        # Handle edge case where there is no state or action recorded for this observation
+        # Also handles cases where the sum of the distribution does not add up to zero
+        # Hacky I know :(
+        if total_possible == 0.0:
+            p = 1.0 / len(self.get_observations())
+            return normalise_to_one([p for _ in self.get_observations()])
+        for idx, observation in enumerate(self.get_observations()):
+            observation_count = 0.0
+            for i in self.instances:
+                if i.observation == observation and i.get_node() is state and i.action == action:
+                    observation_count += 1.0
+            observations[idx] = observation_count / total_possible
+        x = sum(observations)
+        if EPSILON <= abs(x - 1.0):
+            raise ValueError("Observation function distribution is not close enough to one")
+        return observations
 
     def display(self):
         levels = defaultdict(list)

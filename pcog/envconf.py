@@ -1,5 +1,6 @@
 from random import choice
 
+
 class Change(object):
     N = 3
     LESS, SAME, MORE = range(N)
@@ -17,17 +18,17 @@ class Action(object):
     EAT = 6
     """
     N = 3
-    FLEE, EXPLORE, ATTACK = range(N)
+    EXPLORE, ATTACK, EAT = range(N)
     SET = set(range(N))
 
     @staticmethod
     def qcog_action(a):
-        if a == Action.FLEE:
-            return 8
         if a == Action.ATTACK:
             return 9
         if a == Action.EXPLORE:
             return 0
+        if a == Action.EAT:
+            return 6
         raise ValueError("Unrecognised action")
 
     @staticmethod
@@ -38,18 +39,19 @@ class Action(object):
             return "ATTACK"
         elif a == 0:
             return "EXPLORE"
+        elif a == 6:
+            return "EAT"
         raise ValueError("Unkown action")
 
     @staticmethod
     def action_name(a):
-        if a == Action.FLEE:
-            return "FLEE"
-        elif a == Action.ATTACK:
+        if a == Action.ATTACK:
             return "ATTACK"
         elif a == Action.EXPLORE:
             return "EXPLORE"
+        elif a == Action.EAT:
+            return "EAT"
         raise ValueError("Unknown action")
-
 
     @staticmethod
     def random_action():
@@ -57,7 +59,6 @@ class Action(object):
         Chooses a random action from set of available actions
         """
         return choice(list(Action.SET))
-
 
     @staticmethod
     def valid_action(a):
@@ -69,6 +70,36 @@ class HealthObservation(object):
     GOOD, OK, BAD = range(N)
     SET = set(range(N))
 
+    @staticmethod
+    def health_level(health):
+        # type: (float) -> int
+        """
+        From an integer returns the current health level of the agent
+        :param health: Current agent health level
+        :return: discretized health level
+        """
+        if 7.0 < health:
+            return HealthObservation.GOOD
+        elif 4.0 < health < 7.0:
+            return HealthObservation.OK
+        else:
+            return HealthObservation.BAD
+
+
+class MovementObservation(object):
+    N = 3
+    STATIONARY, FAR, SUPER_FAR = range(N)
+    SET = set(range(N))
+
+    @staticmethod
+    def movement_level(movement):
+        if 4.0 < movement:
+            return MovementObservation.SUPER_FAR
+        elif 1.0 < movement <= 4.0:
+            return MovementObservation.FAR
+        else:
+            return MovementObservation.STATIONARY
+
 
 class FoodObservation(object):
     N = 4
@@ -76,20 +107,32 @@ class FoodObservation(object):
     SET = set(range(N))
 
 
-class WolfObservation(object):
+class DistanceObservation(object):
     N = 4
-    UNKNOWN, FAR, CLOSE, UNDER_ATTACK = range(N)
+    UNKNOWN, FAR, CLOSE, VERY_CLOSE = range(N)
     SET = set(range(N))
 
     @staticmethod
+    def proximity_level(distance):
+        if 15.0 < distance:
+            proximity = DistanceObservation.UNKNOWN
+        elif 5.0 <= distance <= 15.0:
+            proximity = DistanceObservation.FAR
+        elif 2.0 < distance <= 5.0:
+            proximity = DistanceObservation.CLOSE
+        else:
+            proximity = DistanceObservation.VERY_CLOSE
+        return proximity
+
+    @staticmethod
     def as_string(o):
-        if o == WolfObservation.UNKNOWN:
+        if o == DistanceObservation.UNKNOWN:
             return "UNKNOWN"
-        elif o == WolfObservation.FAR:
+        elif o == DistanceObservation.FAR:
             return "FAR"
-        elif o == WolfObservation.CLOSE:
+        elif o == DistanceObservation.CLOSE:
             return "CLOSE"
-        elif o == WolfObservation.UNDER_ATTACK:
+        elif o == DistanceObservation.VERY_CLOSE:
             return "UNDER_ATTACK"
 
 

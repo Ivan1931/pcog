@@ -36,7 +36,6 @@ class USMTest(unittest.TestCase):
         a1 = tree._root.child('a1')
         self.assertEqual(a1.reward('a1'), 1.0)
 
-
     def test_pr(self):
         tree = self._generate_test_usm()
         for s1 in tree.get_states():
@@ -61,15 +60,12 @@ class USMTest(unittest.TestCase):
             print(('#' * 5) + ' ' + str(t1))
             print(('#' * 5) + ' ' + str(t2))
 
-
     def test_drawing(self):
         tree = self._generate_test_usm()
         draw_usm(tree)
 
-
     def _make_instance_pattern(self):
         return [ Instance("a1","o1", 1.0), Instance("a2","o2", 1.0), Instance("a1","o3", 1.0) ]
-
 
     def test_derive_pomdp_with_duplicate_instance_sequence(self):
         pattern1 = self._make_instance_pattern()
@@ -112,6 +108,12 @@ class USMTest(unittest.TestCase):
             Instance("a1", "o3", 1.0),
         ])
         self.assertAlmostEqual(sum(bs), 1.0)
+
+    def test_that_usm_observation_function_works(self):
+        with open('test/data/test_observation_usm', 'r') as f:
+            usm = pickle.load(f)
+            pomdp = build_pomdp_model(usm)
+            self.assertEqual(True, True)
 
 if __name__ == "__main__": 
     unittest.main()

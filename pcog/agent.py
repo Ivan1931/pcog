@@ -1,4 +1,4 @@
-from .envconf import HealthObservation, DangerState, Action, WolfObservation
+from .envconf import HealthObservation, DangerState, Action, DistanceObservation
 from .humanoid import Humanoid
 from json import loads
 from .deps import MDP
@@ -13,7 +13,7 @@ def oi(wolf_proximity, health_observation):
 
 
 def danger(s, w, h, a):
-    d = (w + h + a) / (WolfObservation.N + HealthObservation.N + Action.N)
+    d = (w + h + a) / (DistanceObservation.N + HealthObservation.N + Action.N)
     if 0.0 < d < 0.25:
         if s == DangerState.LOW:
             return 1.0
@@ -90,12 +90,12 @@ def make_pcog_simulation():
     # Actions are: 0-listen, 1-open-left, 2-open-right
     S = DangerState.N
     A = Action.N
-    O = WolfObservation.N * HealthObservation.N
+    O = DistanceObservation.N * HealthObservation.N
     model = POMDP.Model(O, S, A)
     transitions = [[[0 for x in xrange(S)] for y in xrange(A)] for k in xrange(S)]
     rewards = [[[0 for x in xrange(S)] for y in xrange(A)] for k in xrange(S)]
     observations = [[[0 for x in xrange(O)] for y in xrange(A)] for k in xrange(S)]
-    for w in xrange(WolfObservation.N):
+    for w in xrange(DistanceObservation.N):
         for h in xrange(HealthObservation.N):
             o = oi(w, h)
             for a in xrange(A):
@@ -161,7 +161,7 @@ def run_pcog_simulation(humanoid):
     horizon = 10 # 10 seconds in real time
     solver = POMDP.IncrementalPruning(horizon, 0.0)
     solution = solver(model)
-    policy = POMDP.Policy(DangerState.N, Action.N, HealthObservation.N * WolfObservation.N, solution[1])
+    policy = POMDP.Policy(DangerState.N, Action.N, HealthObservation.N * DistanceObservation.N, solution[1])
     b = belief_state(humanoid, observations)
     a, ID = policy.sampleAction(b, horizon)
     return a
