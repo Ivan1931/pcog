@@ -54,7 +54,6 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
         logger.info("Connection address: {}".format(self.client_address[0]))
         self.agent = ModelLearnAgent(usm=UtileSuffixMemory(
             known_actions=list(Action.SET),
-            known_observations=[(i, j, k) for i in Change.SET for j in Change.SET for k in Change.SET]
         ))
         self.recent = self.get_line()
         self.send_action(self.agent.get_decision())

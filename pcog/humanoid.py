@@ -1,11 +1,12 @@
 from typing import Tuple, Optional
 from json import loads
-from .envconf import HealthObservation, WolfObservation
+from .envconf import HealthObservation, DistanceObservation
 
 import logging
 import math
 
 logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
+
 
 def dist(a, b):
     return math.sqrt(math.sqrt(math.pow(a[0] - a[0], 2.0)) +
@@ -45,28 +46,16 @@ class Humanoid(object):
 
     def get_wolf_proximity(self):
         if self.wolf_position is None:
-            return WolfObservation.UNKNOWN
+            return DistanceObservation.UNKNOWN
         d = dist(self.wolf_position, self.position)
-        if 15.0 < d:
-            proximity = WolfObservation.UNKNOWN
-        elif 5.0 <= d <= 15.0:
-            proximity = WolfObservation.FAR
-        elif 2.0 < d <= 5.0:
-            proximity = WolfObservation.CLOSE
-        else:
-            proximity = WolfObservation.UNDER_ATTACK
+        proximity = DistanceObservation.proximity_level(d)
         logging.info(
-            "Wolf Distance: {} - Proximity: {}".format(d, WolfObservation.as_string(proximity))
+            "Wolf Distance: {} - Proximity: {}".format(d, DistanceObservation.as_string(proximity))
         )
         return proximity
 
     def get_health(self):
-        if 7.0 < self.health:
-            return HealthObservation.GOOD
-        elif 4.0 < self.health < 7.0:
-            return HealthObservation.OK
-        else:
-            return HealthObservation.BAD
+        return HealthObservation.health_level(self.health)
 
     def get_hunger_level(self):
         pass
