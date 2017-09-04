@@ -17,21 +17,19 @@ class Action(object):
     EXPLORE = 0
     EAT = 6
     """
-    N = 4
-    FLEE, EXPLORE, ATTACK, EAT = range(N)
+    N = 3
+    EXPLORE, ATTACK, EAT = range(N)
     SET = set(range(N))
 
     @staticmethod
     def qcog_action(a):
-        if a == Action.FLEE:
-            return 8
         if a == Action.ATTACK:
             return 9
         if a == Action.EXPLORE:
             return 0
         if a == Action.EAT:
             return 6
-        raise ValueError("Unrecognised action")
+        raise ValueError("Unrecognised action: {}".format(a))
 
     @staticmethod
     def qcog_action_name(a):
@@ -43,19 +41,17 @@ class Action(object):
             return "EXPLORE"
         elif a == 6:
             return "EAT"
-        raise ValueError("Unkown action")
+        raise ValueError("Unknown action: {}".format(a))
 
     @staticmethod
     def action_name(a):
-        if a == Action.FLEE:
-            return "FLEE"
-        elif a == Action.ATTACK:
+        if a == Action.ATTACK:
             return "ATTACK"
         elif a == Action.EXPLORE:
             return "EXPLORE"
         elif a == Action.EAT:
             return "EAT"
-        raise ValueError("Unknown action")
+        raise ValueError("Unknown action: {}".format(a))
 
     @staticmethod
     def random_action():

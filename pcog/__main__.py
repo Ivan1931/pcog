@@ -48,7 +48,6 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
         self.wfile.write("{}\n".format(action))
         self.wfile.flush()
 
-
     def handle(self):
         logger.info("Handling pcog model learning connection request")
         logger.info("Connection address: {}".format(self.client_address[0]))
