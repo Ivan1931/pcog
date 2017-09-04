@@ -3,6 +3,7 @@ import logging
 from .deps import MDP
 from .deps import POMDP
 from .usm import UtileSuffixMemory
+from .usm_draw import draw_usm
 from typing import List
 import pickle
 
@@ -85,13 +86,16 @@ def _function_sanity_test(func):
     return offending
 
 
-def build_pomdp_model(usm):
+def build_pomdp_model(usm, should_draw=True):
     # type: (UtileSuffixMemory) -> POMDP.Model
     """
     Creates a POMDP model from a Utile Suffix Memory
+    :param should_draw: Instructs the method to draw the POMDP being constructed
     :param usm: Utile suffix memory to use in POMDP
     :return: POMDP
     """
+    if should_draw:
+        draw_usm(usm)
     S = len(usm.get_states())
     A = len(usm.get_actions())
     O = len(usm.get_observations())
@@ -111,12 +115,8 @@ def build_pomdp_model(usm):
 
 def solve(usm, model, past_perceptions, belief_nodes=1000, horizon=10, episolon=0.03):
     solver = POMDP.POMCPModel(model, belief_nodes, 1000, 10000.0)
-    S = len(usm.get_states())
-    A = len(usm.get_actions())
-    O = len(usm.get_observations())
-    # policy = POMDP.Policy(S, A, O, solution[1])
-    a = solver.sampleAction(belief_state(usm, past_perceptions), horizon)
+    beliefs = belief_state(usm, past_perceptions)
+    logger.info("Beliefs: %s", " ".join(map(str, beliefs)))
+    a = solver.sampleAction(beliefs, horizon)
     return a
 
-def plan_off_usm(usm, last_precept):
-    model, _, _, _ = build_pomdp_model(usm)

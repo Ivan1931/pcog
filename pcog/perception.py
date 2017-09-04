@@ -1,5 +1,6 @@
 from json import loads
 import math
+from random import choice
 from bunch import bunchify
 from .envconf import Change, DistanceObservation, HealthObservation, Action, MovementObservation
 from .humanoid import dist
@@ -69,6 +70,7 @@ def perceive(current, previous):
 def sigmoid(x):
     return math.exp(x) / (math.exp(x) + 1.0)
 
+
 def perception_reward(current, previous, conf=dict(max_health=10.0)):
     health_change, distance_change, visible_predators_change = _change(current, previous)
     return health_change / conf["max_health"] + sigmoid(distance_change) + sigmoid(visible_predators_change)
@@ -81,58 +83,56 @@ class Perceptor(object):
 
     @staticmethod
     def possible_observations():
-        return [(w, f) for w in DistanceObservation.SET
-                          for f in DistanceObservation.SET]
+        return [(w, f, m) for w in DistanceObservation.SET
+                          for f in DistanceObservation.SET
+                          for m in MovementObservation.SET]
 
     def perception_reward(self, action):
         stationary_penalty = -0.5
-        wolf_proximity, food_proximity, health, movement = self._perception_observation()
+        wolf, food, movement = self._perception_observation()
+        if action == Action.EAT:
+            if movement == MovementObservation.STATIONARY:
+                return stationary_penalty
+            if DistanceObservation.CLOSE <= food:
+                return 10.0
+            return 0.0
+        if action == Action.ATTACK:
+            if movement == MovementObservation.STATIONARY:
+                return stationary_penalty
+            if DistanceObservation.CLOSE <= wolf:
+                return 10.0
+            return 0.0
         if action == Action.EXPLORE:
-            # Punish agent for loosing health during exploration
-            if self.current.health < self.previous.health:
-                return -10.0
-            elif DistanceObservation.CLOSE <= food_proximity and health < HealthObservation.OK:
-                # Punish agent for exploring when close to food and with less than good health
-                return -10.0
-            else:
-                return 1.0
-        elif action == Action.ATTACK:
-            if DistanceObservation.CLOSE <= wolf_proximity:
-                return 10.0
-            elif self.current.health < self.previous.health:
-                return 10.0
-            else:
-                return stationary_penalty
-        else:
-            # action == Action.EAT
-            if self.previous.health < self.current.health and DistanceObservation.CLOSE <= food_proximity:
-                return 20.0
-            elif DistanceObservation.CLOSE < food_proximity:
-                return 10.0
-            elif self.current.health < self.previous.health or food_proximity == DistanceObservation.UNKNOWN:
-                # Punish agent for eating when there is no food in site and it's health is bad
-                return -10.0
-            else:
-                return stationary_penalty
+            if movement == MovementObservation.STATIONARY:
+                return 2.0
+            return 0.2
 
     def perception_observation(self):
-        wolf_proximity, food_proximity, _, _ = self._perception_observation()
-        return wolf_proximity, food_proximity
+        return self._perception_observation()
 
     def _perception_observation(self):
-        d = 0.0
-        wolf_proximity = DistanceObservation.UNKNOWN
-        for predator in self.current.predators:
-            d += dist(predator, self.current.position)
-            wolf_proximity = DistanceObservation.proximity_level(d)
-        food_proximity = DistanceObservation.UNKNOWN
-        for food in self.current.foodSources:
-            d += dist(food, self.current.position)
-            food_proximity = DistanceObservation.proximity_level(d)
-        health = HealthObservation.health_level(self.current.health)
-        movement = dist(self.current.position, self.previous.position)
-        movement = MovementObservation.movement_level(movement)
-        return wolf_proximity, food_proximity, health, movement
+        if self.current.lastWolfPosition is None:
+            wolf_proximity = DistanceObservation.UNKNOWN
+        else:
+            wolf_proximity = DistanceObservation.proximity_level(dist(self.current.position, self.current.lastWolfPosition))
+        if self.current.lastFoodPosition is None:
+            food_proximity = DistanceObservation.UNKNOWN
+        else:
+            food_proximity = DistanceObservation.proximity_level(dist(self.current.position, self.current.lastFoodPosition))
+        if self.current.position == self.previous.position:
+            movement = MovementObservation.STATIONARY
+        else:
+            movement = MovementObservation.movement_level(dist(self.current.position, self.previous.position))
+        return wolf_proximity, food_proximity, movement
+
+    def smart_explore(self):
+        wolf, food, movement = self._perception_observation()
+        if DistanceObservation.CLOSE <= food and movement != MovementObservation.STATIONARY:
+            return Action.EAT
+        elif DistanceObservation.CLOSE <= wolf:
+            return Action.ATTACK
+        else:
+            return Action.EXPLORE
 
     @staticmethod
     def create(current, previous):

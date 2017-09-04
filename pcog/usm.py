@@ -139,7 +139,7 @@ class ObservationNode(USMNode):
 
 class UtileSuffixMemory(object):
     def __init__(self,
-                 window_size=5,
+                 window_size=4,
                  fringe_depth=2,
                  gamma=0.3,
                  known_actions=None,

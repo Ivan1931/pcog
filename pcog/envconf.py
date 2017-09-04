@@ -29,7 +29,7 @@ class Action(object):
             return 0
         if a == Action.EAT:
             return 6
-        raise ValueError("Unrecognised action")
+        raise ValueError("Unrecognised action: {}".format(a))
 
     @staticmethod
     def qcog_action_name(a):
@@ -41,7 +41,7 @@ class Action(object):
             return "EXPLORE"
         elif a == 6:
             return "EAT"
-        raise ValueError("Unkown action")
+        raise ValueError("Unknown action: {}".format(a))
 
     @staticmethod
     def action_name(a):
@@ -51,7 +51,7 @@ class Action(object):
             return "EXPLORE"
         elif a == Action.EAT:
             return "EAT"
-        raise ValueError("Unknown action")
+        raise ValueError("Unknown action: {}".format(a))
 
     @staticmethod
     def random_action():
