@@ -1,11 +1,11 @@
+run:
+	python -m pcog pcog:__main__
+
 clean:
 	rm -rf **/*.pyc
 
-watch:
-	guard
+log:
+	tail -f pcog.log
 
-install:
-	pip install . --upgrade
-
-run:
-	python -m pcog pcog:__main__
+test:
+	python -m unnittest test.usm_test

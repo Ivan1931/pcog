@@ -13,10 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class ModelLearnAgent(object):
-<<<<<<< HEAD
-    def __init__(self, usm=None, perceptor=Perceptor, max_exploration_iterations=40, perceptive_window=2):
-        # type: (UtileSuffixMemory, Perceptor, int, int) -> None
-=======
     def __init__(self,
                  usm=None,
                  perceptor=Perceptor,
@@ -24,7 +20,6 @@ class ModelLearnAgent(object):
                  perceptive_window=2,
                  save_perceptions=False):
         # type: (UtileSuffixMemory, Perceptor, int, int, bool) -> None
->>>>>>> improved_logging
         if usm:
             self.usm = usm
         else:
@@ -37,11 +32,8 @@ class ModelLearnAgent(object):
         self._perception_window = perceptive_window
         self._perception_factory = perceptor
         self.model = None
-<<<<<<< HEAD
-=======
         self._should_save_perceptions = save_perceptions
         self._has_saved_perceptions = False
->>>>>>> improved_logging
         usm._observation_space = self.possible_observations()
 
     def possible_observations(self):
@@ -56,14 +48,10 @@ class ModelLearnAgent(object):
     def add_perception(self, perception):
         self._perceptions.append(perception)
         if 1 < len(self._perceptions):
-<<<<<<< HEAD
-            perceptor = self._perception_factory(self._perceptions[-1], self._perceptions[-2])
-=======
             perceptor = self._perception_factory(
                 current=self._perceptions[-1],
                 previous=self._perceptions[-2]
             )
->>>>>>> improved_logging
             action = self._actions[-1]
             reward = perceptor.perception_reward(action)
             observation = perceptor.perception_observation()
