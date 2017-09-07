@@ -6,7 +6,9 @@ import sys
 import logging
 import SocketServer
 import datetime
-from .agent import simulate
+from json import loads
+from bunch import bunchify
+from .agent import GridAgent
 from .envconf import Action, Change
 from .perception import perceive, process, perception_reward
 from .usm import UtileSuffixMemory, Instance
@@ -21,10 +23,14 @@ class PCogHandler(SocketServer.StreamRequestHandler):
     def handle(self):
         logger.info("Handling pcog connection request")
         self.data = self.rfile.readline().strip()
+        agent = GridAgent()
+        agent.derive_model()
         while self.data:
             logger.info("{} wrote:".format(self.client_address[0]))
             logger.info(self.data)
-            action = simulate(self.data)
+            observation = agent.derive_observation(bunchify(loads(self.data)))
+            agent.update_belief(observation)
+            action = agent.plan()
             logger.info("Selected action: {} = {}".format(Action.qcog_action_name(action), action))
             self.wfile.write("{}\n".format(action))
             self.wfile.flush()

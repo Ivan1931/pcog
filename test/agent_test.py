@@ -1,7 +1,7 @@
 import unittest
 from json import loads
-import pcog
-from pcog.agent import simulate
+from bunch import bunchify
+from pcog.agent import simulate, GridAgent
 from pcog.envconf import Action
 
 humoid_json = """
@@ -31,6 +31,21 @@ class BasicStressTest(unittest.TestCase):
     def test_null_wolf(self):
         action = simulate(humanoid_null_wolf)
         self.assertIn(action, Action.SET, msg="The action selected was {}".format(action))
+
+
+class GridAgentTest(unittest.TestCase):
+    def test_construction(self):
+        agent = GridAgent()
+        agent.derive_model()
+        observation = bunchify({
+            "position": [2.0, 0.0, 1.0],
+            "health": 10.0,
+            "lastWolfPosition": [1.0, 0.0, 1.0],
+            "lastFoodPosition": [10.0, 0.0, 10.0],
+        })
+        agent.update_belief(observation)
+        action = agent.plan()
+        self.assertEqual(action, Action.ATTACK)
 
 if __name__ == "__main__a":
     unittest.main()
