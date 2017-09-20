@@ -237,6 +237,43 @@ class GridAgent(object):
                         Action.qcog_action_name(action))
             return action
 
+class Hybrid(object):
+    @staticmethod
+    def _state_space():
+        return [(food_seen, enemy_seen, health, danger_level)
+                for food_seen in [True, False]
+                for enemy_seen in [True, False]
+                for health in HealthObservation.SET
+                for danger_level in DangerState.SET]
+
+    def __init__(self, is_hybrid=False):
+        self._states = Hybrid._state_space()
+        self._intention = None
+
+    def plan(self):
+        pass
+
+    def update_belief(self):
+        pass
+
+    def derive_model(self):
+        pass
+
+    def derive_transitions(self):
+        pass
+
+    def derive_reward(self):
+        pass
+
+    def derive_observations(self):
+        pass
+
+    def set_belief(self):
+        pass
+
+    def set_rewards(self):
+        pass
+
 def oi(wolf_proximity, health_observation):
     return wolf_proximity * HealthObservation.N + health_observation
 

@@ -82,14 +82,16 @@ class USMTest(unittest.TestCase):
         for p in pattern2:
             usm.insert(p)
         # draw_usm(usm)
+        self.assertFalse(usm.unfringe())
         pomdp = build_pomdp_model(usm)
 
     def test_live_usm(self):
         with open('test/data/test_usm', 'r') as f:
             usm = pickle.load(f)
-            # draw_usm(usm)
-            pomdp = build_pomdp_model(usm)
-            self.assertEqual(True, True)
+            draw_usm(usm)
+            unfringed = usm.unfringe()
+            self.assertTrue(unfringed)
+            pomdp = build_pomdp_model(usm, should_draw=True)
 
     def test_derive_pomdp(self):
         tree = self._generate_test_usm()

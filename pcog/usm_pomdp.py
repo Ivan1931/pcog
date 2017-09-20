@@ -67,10 +67,10 @@ def belief_state(usm, past_perceptions):
         # Edge case for when we don't find any related leaves (IE we have like one step that matches nothing )
         logger.info("Belief state could not be derived for: %s", str(past_perceptions))
         p = 1.0 / float(len(usm.get_states()))
-        return [p for s in usm.get_states()]
+        return [p for _ in usm.get_states()]
     else:
         p = 1.0 / float(len(leaves))
-    belief = [0.0 for s in usm.get_states()]
+    belief = [0.0 for _ in usm.get_states()]
     for idx, state in enumerate(usm.get_states()):
         if state in leaves:
             belief[idx] = p
@@ -86,7 +86,7 @@ def _function_sanity_test(func):
     return offending
 
 
-def build_pomdp_model(usm, should_draw=True):
+def build_pomdp_model(usm, should_draw=False):
     # type: (UtileSuffixMemory) -> POMDP.Model
     """
     Creates a POMDP model from a Utile Suffix Memory

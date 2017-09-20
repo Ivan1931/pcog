@@ -1,13 +1,13 @@
 import logging
-from random import choice
+from random import choice, random
 from datetime import datetime
 import pickle
 
 from .usm import UtileSuffixMemory, Instance
 from .envconf import Action
-from .perception import perceive, perception_reward, Perceptor
-from .usm_draw import update_usm_drawing
-from .usm_pomdp import build_pomdp_model, solve
+from .perception import Perceptor, SimplePerceptor
+from .usm_draw import update_usm_drawing, draw_usm
+from .usm_pomdp import build_pomdp_model, solve, belief_state
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +15,12 @@ logger = logging.getLogger(__name__)
 class ModelLearnAgent(object):
     def __init__(self,
                  usm=None,
-                 perceptor=Perceptor,
-                 max_exploration_iterations=60,
-                 perceptive_window=2,
-                 save_perceptions=False):
+                 perceptor=SimplePerceptor,
+                 max_exploration_iterations=30,
+                 perceptive_window=3,
+                 epsilon=0.1,
+                 save_perceptions=False,
+                 use_smart_explore=True):
         # type: (UtileSuffixMemory, Perceptor, int, int, bool) -> None
         if usm:
             self.usm = usm
@@ -34,6 +36,9 @@ class ModelLearnAgent(object):
         self.model = None
         self._should_save_perceptions = save_perceptions
         self._has_saved_perceptions = False
+        self._state_distribution = None
+        self._use_smart_explore = use_smart_explore
+        self.epsilon = epsilon
         usm._observation_space = self.possible_observations()
 
     def possible_observations(self):
@@ -63,8 +68,9 @@ class ModelLearnAgent(object):
                     reward=reward,
                 )
             )
-            logger.info(" Inserted perceptions: %s action: %s reward: %s into learning agent "
-                        , str(perception)
+            logger.info("Perception from PCog is %s", str(perception))
+            logger.info(" Inserted observation: %s action: %s reward: %s into learning agent "
+                        , str(observation)
                         , str(action)
                         , str(reward))
         self._iterations += 1
@@ -83,13 +89,22 @@ class ModelLearnAgent(object):
             self._has_saved_perceptions = True
 
     def get_decision(self):
-        if self.max_exploration_iterations < self._iterations and not self._repeating_actions():
+        if (self._iterations + 1) % self.max_exploration_iterations == 0:
             if not self._has_saved_perceptions and self._should_save_perceptions:
                 self._save_perceptions()
-            if not self.model:
-                self.model = build_pomdp_model(self.usm)
+            # self.usm.unfringe()
+            #draw_usm(self.usm)
+            self.model = build_pomdp_model(self.usm)
             if len(self.usm.get_instances()) == 0:
                 raise ValueError("Attempting to plan with a model that has no perceptions")
+            beliefs = belief_state(self.usm, self.usm.get_instances()[-self._perception_window:])
+            if self._state_distribution is None:
+                self._state_distribution = beliefs
+            else:
+                for i in range(len(self._state_distribution)):
+                    self._state_distribution[i] += beliefs[i]
+            logger.info("Belief distribution: {}".format(self._state_distribution))
+        if self.model is not None and self.epsilon < random():
             logger.info("Making decision No. %d with POMDP model", self._iterations)
             action = solve(self.usm,
                            self.model,
@@ -97,14 +112,14 @@ class ModelLearnAgent(object):
             self._actions.append(action)
             return action
         else:
-            if 1 < len(self._perceptions):
+            if 1 < len(self._perceptions) and self._use_smart_explore:
                 logger.info("Making decision using smart exploration")
                 perceptor = self._perception_factory(self._perceptions[-1], self._perceptions[-2])
                 action = perceptor.smart_explore()
             else:
                 logger.info("Making decision No. %d with random action", self._iterations)
                 # Bellow is a hack to get the agent to spend more time choosing the explore action than before
-                actions_to_choose = self.usm.get_actions() + [Action.EXPLORE]
+                actions_to_choose = self.usm.get_actions()
                 action = choice(actions_to_choose)
             self._actions.append(action)
             return action

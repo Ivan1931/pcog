@@ -1,7 +1,9 @@
 from collections import deque, defaultdict
 from random import randint
+from scipy.stats import ks_2samp
+import sys
 
-EPSILON = 0.0000001
+EPSILON = 0.000000000000001
 
 
 def normalise_to_one(numbers):
@@ -11,12 +13,32 @@ def normalise_to_one(numbers):
         return numbers
     elif s < 1.0:
         d = 1.0 - s
-        numbers[i] += d
+        placed = False
+        while not placed:
+            if 0.0 <= numbers[i] + d <= 1.0:
+                numbers[i] += d
+                placed = True
+            else:
+                i = randint(0, len(numbers) - 1)
         return numbers
     else:
+        placed = False
         d = s - 1.0
-        numbers[i] -= d
+        while not placed:
+            if 0.0 <= numbers[i] - d <= 1.0:
+                numbers[i] -= d
+                placed = True
+            else:
+                i = randint(0, len(numbers) - 1)
         return numbers
+
+
+class USMStats(object):
+    def __init__(self):
+        self.belief_distribution = {}
+
+    def belief_distribution(self):
+        pass
 
 class Instance(object):
     def __init__(self, action, observation, reward):
@@ -60,10 +82,8 @@ class USMNode(object):
         self.instances = []
         self.parent = None
 
-
     def __str__(self):
         return "r"
-
 
     def set_fringe(self, fringe):
         self.is_fringe = fringe
@@ -71,15 +91,12 @@ class USMNode(object):
     def child(self, key):
         return self.children.get(key)
 
-
     def add_child(self, key, child_node):
         child_node.parent = self
         self.children[key] = child_node
 
-
     def add_instance(self, instance):
         self.instances.append(instance)
-
 
     def is_leaf(self):
         if self.is_fringe: 
@@ -88,14 +105,15 @@ class USMNode(object):
                 or 
                 all([child.is_fringe for child in self.children.values()]))
 
-
     def _reward(self, total_reward, instances, action):
         return total_reward, instances
-
 
     def reward(self, action):
         total, instances = self._reward(0.0, 0, action)
         return total / float(instances)
+
+    def get_children(self):
+        return self.children.values()
 
 
 class ActionNode(USMNode):
@@ -116,7 +134,6 @@ class ActionNode(USMNode):
         return self.parent._reward(total_reward + self._instances_reward(action), 
                                    instances + len(self.instances),
                                    action)
-
 
     def observation(self, o):
         return self.child(o)
@@ -170,7 +187,6 @@ class UtileSuffixMemory(object):
                 if node in self._states:
                     self._states.remove(node)
 
-
     def insert(self, instance):
         if instance in self.instances:
             raise ValueError("Inserting an instance that has already been used")
@@ -192,21 +208,21 @@ class UtileSuffixMemory(object):
             observation.set_fringe(fringe)
             if i.action in current.children:
                 current = current.children[action.action]
+                current.add_instance(i)
             else:
                 current.children[action.action] = action
                 current.add_child(action.action, action)
                 current = action
             if i.observation in current.children:
                 current = current.children[observation.observation]
+                current.add_instance(i)
             else:
                 current.add_child(observation.observation, observation)
                 current = observation
         return current
 
-
     def _insert_leaf(self, suffix):
         return self._insert_instances(self._root, reversed(suffix), False)
-
 
     def _insert_fringe(self, suffix):
         presuffix = suffix[0:self.fringe_depth]
@@ -225,7 +241,6 @@ class UtileSuffixMemory(object):
             if equal:
                 self._insert_instances(state, post_suffix, True)
     
-
     def _insert(self):
         suffix = self.instances[-self.window_size:]
         leaf = self._insert_leaf(suffix)
@@ -252,6 +267,53 @@ class UtileSuffixMemory(object):
 
     def get_instances(self):
         return self.instances
+
+    def utility(self, state):
+        # type: (UtileSuffixMemory, USMNode) -> float
+        best = -sys.maxint
+        for action in self.get_actions():
+            best = max(state.reward(action), best)
+        return best
+
+    def tree_leaves(self):
+        # BFS of the tree for all leaves
+        children = []
+        leaves = []
+        children.append(self._root)
+        while len(children) != 0:
+            n = children.pop()
+            if len(n.get_children()) == 0:
+                leaves.append(n)
+            else:
+                kids = n.get_children()
+                children += kids
+        return leaves
+
+    def unfringe(self, alpha=0.05):
+        """
+        This method decides whether to expand the suffix trie onto the fringe.
+        It does this by constructing a distribution of the utilities of all the current states and from one
+        that includes the current state as well fringe nodes that are on the unofficial leaf of the tree.
+        If the two distributions are sufficiently different then the state space is expanded to include all leaf nodes
+        currently in the tree. The distribution comparison is performed using a KS test.
+        """
+        all_leaves = self.tree_leaves()
+        all_leaves_dist = list(map(lambda leaf: self.utility(leaf), all_leaves))
+        print(all_leaves_dist)
+        current_leaves = self.get_states()
+        current_dist = list(map(lambda leaf: self.utility(leaf), current_leaves))
+        print(current_dist)
+        D, p_value = test_result = ks_2samp(all_leaves_dist, current_dist)
+        print(D)
+        print(p_value)
+        if p_value < alpha or alpha < D:
+            for leaf in all_leaves:
+                if leaf.is_fringe:
+                    leaf.set_fringe(False)
+                    self._correct_fringe(leaf)
+            return True
+        else:
+            return False
 
     def _leaves(self, internal_node):
         return [i.get_node() for i in internal_node.instances if i.get_node().is_leaf()]
@@ -303,8 +365,12 @@ class UtileSuffixMemory(object):
             if i.next and i.next.get_node().is_leaf():
                 leaf_count += 1.0
         if leaf_count <= 0.0:
-            p = 1.0 / len(self.get_states())
-            return [p for _ in range(l)]
+            for idx, state in enumerate(self.get_states()):
+                if state is incident_state:
+                    transitions[idx] = 1.0
+                else:
+                    transitions[idx] = 0.0
+            return transitions
         for arrival_state in self.get_states():
             equal_count = 0.0
             for i in tau:

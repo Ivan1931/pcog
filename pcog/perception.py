@@ -1,6 +1,7 @@
 from json import loads
 import math
 from random import choice
+import sys
 from bunch import bunchify
 from .envconf import Change, DistanceObservation, HealthObservation, Action, MovementObservation
 from .humanoid import dist
@@ -8,72 +9,6 @@ from .humanoid import dist
 
 def process(state_perception_string):
     return bunchify(loads(state_perception_string))
-
-
-def _change(current, previous):
-    current_distance = 0.0
-    for v in current.predators:
-        current_distance += dist(v, current.position)
-    if 0.0 < len(current.predators): 
-        current_distance /= float(len(current.predators))
-    previous_distance = 0.0
-    for v in previous.predators:
-        previous_distance += dist(v, previous.position)
-    return (
-        current.health - previous.health,
-        current_distance - previous_distance,
-        len(current.predators) - len(previous.predators)
-    )
-
-
-def perceive(current, previous):
-    """
-    This method takes the previous known state of the world and the current known state
-    and compares the difference between them and creates a discetised difference between them
-    :param current: The most recent state
-    :param previous: The state recorded before it
-    :return: A perceptive difference between the state
-    """
-    if current.health < previous.health:
-        health = Change.LESS
-    elif current.health == previous.health:
-        health = Change.SAME
-    else:
-        health = Change.MORE
-    current_distance = 0.0
-    for v in current.predators:
-        current_distance += dist(v, current.position)
-    if 0.0 < len(current.predators):
-        current_distance /= float(len(current.predators))
-    previous_distance = 0.0
-    for v in previous.predators:
-        previous_distance += dist(v, previous.position)
-    if 0.0 < len(previous.predators):
-        previous_distance /= float(len(previous.predators))
-
-    if current_distance < previous_distance:
-        distance = Change.LESS
-    elif previous_distance < current_distance:
-        distance = Change.MORE
-    else:
-        distance = Change.SAME
-
-    if len(current.predators) < len(previous.predators):
-        predators = Change.LESS
-    elif len(current.predators) == len(previous.predators):
-        predators = Change.SAME
-    else:
-        predators = Change.MORE
-    return distance, health, predators
-
-
-def sigmoid(x):
-    return math.exp(x) / (math.exp(x) + 1.0)
-
-
-def perception_reward(current, previous, conf=dict(max_health=10.0)):
-    health_change, distance_change, visible_predators_change = _change(current, previous)
-    return health_change / conf["max_health"] + sigmoid(distance_change) + sigmoid(visible_predators_change)
 
 
 class Perceptor(object):
@@ -88,7 +23,7 @@ class Perceptor(object):
                           for m in MovementObservation.SET]
 
     def perception_reward(self, action):
-        stationary_penalty = -0.5
+        stationary_penalty = -10.0
         wolf, food, movement = self._perception_observation()
         if action == Action.EAT:
             if movement == MovementObservation.STATIONARY:
@@ -97,11 +32,9 @@ class Perceptor(object):
                 return 10.0
             return 0.0
         if action == Action.ATTACK:
-            if movement == MovementObservation.STATIONARY:
-                return stationary_penalty
-            if DistanceObservation.CLOSE <= wolf:
+            if DistanceObservation.FAR <= wolf:
                 return 10.0
-            return 0.0
+            return stationary_penalty
         if action == Action.EXPLORE:
             if movement == MovementObservation.STATIONARY:
                 return 2.0
@@ -114,11 +47,13 @@ class Perceptor(object):
         if self.current.lastWolfPosition is None:
             wolf_proximity = DistanceObservation.UNKNOWN
         else:
-            wolf_proximity = DistanceObservation.proximity_level(dist(self.current.position, self.current.lastWolfPosition))
+            wolf_proximity = DistanceObservation.proximity_level(dist(self.current.position,
+                                                                      self.current.lastWolfPosition))
         if self.current.lastFoodPosition is None:
             food_proximity = DistanceObservation.UNKNOWN
         else:
-            food_proximity = DistanceObservation.proximity_level(dist(self.current.position, self.current.lastFoodPosition))
+            food_proximity = DistanceObservation.proximity_level(dist(self.current.position,
+                                                                      self.current.lastFoodPosition))
         if self.current.position == self.previous.position:
             movement = MovementObservation.STATIONARY
         else:
@@ -126,14 +61,69 @@ class Perceptor(object):
         return wolf_proximity, food_proximity, movement
 
     def smart_explore(self):
-        wolf, food, movement = self._perception_observation()
-        if DistanceObservation.CLOSE <= food and movement != MovementObservation.STATIONARY:
-            return Action.EAT
-        elif DistanceObservation.CLOSE <= wolf:
-            return Action.ATTACK
-        else:
-            return Action.EXPLORE
+        max_reward = -sys.maxint
+        max_action = Action.EXPLORE
+        for action in Action.SET:
+            reward = self.perception_reward(action)
+            if max_reward < reward:
+                max_action = action
+                max_reward = reward
+        return max_action
 
+class SimplePerceptor(Perceptor):
     @staticmethod
-    def create(current, previous):
-        return Perceptor(current, previous)
+    def possible_observations():
+        return [(wolf, food, health, movement, died)
+                for wolf in [True, False]
+                for food in [True, False]
+                for died in [True, False]
+                for health in HealthObservation.SET
+                for movement in MovementObservation.SET]
+
+    def perception_observation(self):
+        wolf = 0 < self.current.numberOfSeenPredators
+        food = 0 < self.current.numberOfSeenEdibles
+        food = food != DistanceObservation.UNKNOWN
+        current = self.current.position
+        previous = self.previous.position
+        movement = MovementObservation.movement_level(dist(current, previous))
+        health = HealthObservation.health_level(self.current.health)
+        died = self.current.deaths != self.previous.deaths
+        return wolf, food, health, movement, died
+
+    def perception_reward(self, action):
+        wolf, food, health, movement, died = self.perception_observation()
+        if died:
+            return -50.0
+        if action == Action.ATTACK:
+            if wolf and HealthObservation.BAD != health:
+                return 10.0
+            elif movement == MovementObservation.STATIONARY:
+                return -10.0
+            else:
+                return -5.0
+        elif action == Action.EXPLORE:
+            if not wolf and not food:
+                if movement == MovementObservation.STATIONARY:
+                    return 7.0
+                else:
+                    return 2.0
+            else:
+                if health == HealthObservation.GOOD:
+                    return 3.0
+                else:
+                    return -4.0
+        elif action == Action.EAT:
+            if food and health != HealthObservation.GOOD:
+                return 15.0
+            elif health == HealthObservation.GOOD:
+                return -20.0
+            elif movement == MovementObservation.STATIONARY:
+                return -10.0
+            else:
+                return -3.0
+        elif action == Action.FLEE:
+            if wolf and health == HealthObservation.BAD:
+                return 5.0
+            else:
+                return -20.0

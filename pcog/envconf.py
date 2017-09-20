@@ -17,8 +17,8 @@ class Action(object):
     EXPLORE = 0
     EAT = 6
     """
-    N = 3
-    EXPLORE, ATTACK, EAT = range(N)
+    N = 4
+    EXPLORE, ATTACK, EAT, FLEE = range(N)
     SET = set(range(N))
 
     @staticmethod
@@ -29,6 +29,8 @@ class Action(object):
             return 0
         if a == Action.EAT:
             return 6
+        if a == Action.FLEE:
+            return 8
         raise ValueError("Unrecognised action: {}".format(a))
 
     @staticmethod
@@ -51,6 +53,8 @@ class Action(object):
             return "EXPLORE"
         elif a == Action.EAT:
             return "EAT"
+        elif a == Action.FLEE:
+            return "FLEE"
         raise ValueError("Unknown action: {}".format(a))
 
     @staticmethod
@@ -80,7 +84,7 @@ class HealthObservation(object):
         """
         if 7.0 < health:
             return HealthObservation.GOOD
-        elif 4.0 < health < 7.0:
+        elif 3.0 < health <= 7.0:
             return HealthObservation.OK
         else:
             return HealthObservation.BAD
@@ -114,9 +118,9 @@ class DistanceObservation(object):
 
     @staticmethod
     def proximity_level(distance):
-        if 15.0 < distance:
+        if 30.0 < distance:
             proximity = DistanceObservation.UNKNOWN
-        elif 5.0 <= distance <= 15.0:
+        elif 5.0 <= distance <= 30.0:
             proximity = DistanceObservation.FAR
         elif 2.0 < distance <= 5.0:
             proximity = DistanceObservation.CLOSE

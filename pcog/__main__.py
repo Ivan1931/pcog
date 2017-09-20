@@ -9,9 +9,9 @@ import datetime
 from json import loads
 from bunch import bunchify
 from .agent import GridAgent
-from .envconf import Action, Change
-from .perception import perceive, process, perception_reward
-from .usm import UtileSuffixMemory, Instance
+from .envconf import Action
+from .perception import process
+from .usm import UtileSuffixMemory
 from .model_learn_agent import ModelLearnAgent
 
 logging.basicConfig(filename="pcog.log", filemode="w", level=logging.INFO)
@@ -62,6 +62,7 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
         ))
         self.recent = self.get_line()
         self.send_action(self.agent.get_decision())
+        self.recent = self.get_line()
         logger.info("Starting agent exploration loop")
         while self.recent:
             raw_perception = process(self.recent)
@@ -69,6 +70,7 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
                 raw_perception
             )
             self.send_action(self.agent.get_decision())
+            logger.info("=" * 20)
             self.recent = self.get_line()
 
 
