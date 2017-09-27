@@ -316,7 +316,10 @@ class UtileSuffixMemory(object):
             return False
 
     def _leaves(self, internal_node):
-        return [i.get_node() for i in internal_node.instances if i.get_node().is_leaf()]
+        if internal_node:
+            return [i.get_node() for i in internal_node.instances if i.get_node().is_leaf()]
+        else:
+            return []
 
     def traverse(self, instances):
         if len(instances) < 1:

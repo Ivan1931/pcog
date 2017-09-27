@@ -1,4 +1,6 @@
 bunch==1.0.1
+typing==3.6.1
 networkx==1.11
 matplotlib==2.0.2
-typing==3.6.1
+scipy==0.19.1
+ipdb==0.10.3

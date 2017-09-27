@@ -6,6 +6,7 @@ import sys
 import logging
 import SocketServer
 import datetime
+import threading
 from json import loads
 from bunch import bunchify
 from .agent import GridAgent
@@ -97,11 +98,20 @@ class PCogModelLearnerEvaluatorHandler(PCogModelLearnerHandler):
                 ))
             self.recent = self.get_line()
 
+class ThreadedServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    pass
+
 
 def main(args=None):
     HOST, PORT = "localhost", 9999
-    server = SocketServer.TCPServer((HOST, PORT), PCogModelLearnerHandler)
-    server.serve_forever()
+    server = ThreadedServer((HOST, PORT), PCogModelLearnerHandler)
+    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+
+    while server_thread.isAlive():
+        pass
+
 
 if __name__=="__main__": 
     main(sys.argv[1:])

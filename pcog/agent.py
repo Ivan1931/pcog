@@ -215,7 +215,7 @@ class GridAgent(object):
 
     def derive_model(self):
         logger.info("Deriving POMDP model")
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         rewards = self.construct_reward()
         transitions = self.get_transitions()
         observations = self.get_observations()

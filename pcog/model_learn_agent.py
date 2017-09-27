@@ -39,6 +39,8 @@ class ModelLearnAgent(object):
         self._state_distribution = None
         self._use_smart_explore = use_smart_explore
         self.epsilon = epsilon
+        self.regens = 0
+        self.max_regens = 10
         usm._observation_space = self.possible_observations()
 
     def possible_observations(self):
@@ -89,12 +91,13 @@ class ModelLearnAgent(object):
             self._has_saved_perceptions = True
 
     def get_decision(self):
-        if (self._iterations + 1) % self.max_exploration_iterations == 0:
+        if (self._iterations + 1) % self.max_exploration_iterations == 0 and self.regens <= self.max_regens:
             if not self._has_saved_perceptions and self._should_save_perceptions:
                 self._save_perceptions()
             # self.usm.unfringe()
             #draw_usm(self.usm)
             pomdp = build_pomdp_model(self.usm)
+            self.regens += 1
             usm = self.usm.derive_new()
             self.model = (usm, pomdp)
             if len(self.usm.get_instances()) == 0:
@@ -106,6 +109,8 @@ class ModelLearnAgent(object):
                 for i in range(len(self._state_distribution)):
                     self._state_distribution[i] += beliefs[i]
             logger.info("Belief distribution: {}".format(self._state_distribution))
+        if self.max_regens < self.regens and (self._iterations + 1) % self.max_exploration_iterations == 0:
+            logger.info("Not performing regeneration because regeneration limit has been reached")
         if self.model is not None and self.epsilon < random():
             logger.info("Making decision No. %d with POMDP model", self._iterations)
             usm, model = self.model
