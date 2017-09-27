@@ -73,6 +73,30 @@ class PCogModelLearnerHandler(SocketServer.StreamRequestHandler):
             logger.info("=" * 20)
             self.recent = self.get_line()
 
+class PCogModelLearnerEvaluatorHandler(PCogModelLearnerHandler):
+    def handle(self):
+        logger.info("Starting experiment on PCog Model Learner")
+        logger.info("Connection address: {}".format(self.client_address[0]))
+        self.agent = ModelLearnAgent(usm=UtileSuffixMemory(
+            known_actions=list(Action.SET)
+        ))
+        self.recent = self.get_line()
+        self.send_action(self.agent.get_decision())
+        self.recent = self.get_line()
+        logger.info("Starting agent exploration loop")
+        while self.recent:
+            if self.recent.strip() != "RESTART":
+                raw_perception = process(self.recent)
+                self.agent.add_perception(raw_perception)
+                self.send_action(self.agent.get_decision())
+                logger.info("=" * 20)
+            else:
+                logger.info("====== ITERATION RESTARTED ======")
+                self.agent = ModelLearnAgent(usm=UtileSuffixMemory(
+                    known_actions=list(Action.SET)
+                ))
+            self.recent = self.get_line()
+
 
 def main(args=None):
     HOST, PORT = "localhost", 9999

@@ -117,5 +117,11 @@ class USMTest(unittest.TestCase):
             pomdp = build_pomdp_model(usm)
             self.assertEqual(True, True)
 
+    def test_derive_new(self):
+        usm = self._generate_test_usm()
+        copy_of_usm = usm.derive_new()
+        self.assertEqual(len(copy_of_usm.get_states()), len(usm.get_states()))
+        self.assertEqual(len(copy_of_usm.get_instances()), len(usm.get_instances()))
+
 if __name__ == "__main__": 
     unittest.main()

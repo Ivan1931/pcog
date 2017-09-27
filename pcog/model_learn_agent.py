@@ -5,7 +5,7 @@ import pickle
 
 from .usm import UtileSuffixMemory, Instance
 from .envconf import Action
-from .perception import Perceptor, SimplePerceptor
+from .perception import Perceptor, SimplePerceptor, ComplexPerceptor
 from .usm_draw import update_usm_drawing, draw_usm
 from .usm_pomdp import build_pomdp_model, solve, belief_state
 
@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 class ModelLearnAgent(object):
     def __init__(self,
                  usm=None,
-                 perceptor=SimplePerceptor,
-                 max_exploration_iterations=30,
+                 perceptor=ComplexPerceptor,
+                 max_exploration_iterations=40,
                  perceptive_window=3,
                  epsilon=0.1,
                  save_perceptions=False,
@@ -94,7 +94,9 @@ class ModelLearnAgent(object):
                 self._save_perceptions()
             # self.usm.unfringe()
             #draw_usm(self.usm)
-            self.model = build_pomdp_model(self.usm)
+            pomdp = build_pomdp_model(self.usm)
+            usm = self.usm.derive_new()
+            self.model = (usm, pomdp)
             if len(self.usm.get_instances()) == 0:
                 raise ValueError("Attempting to plan with a model that has no perceptions")
             beliefs = belief_state(self.usm, self.usm.get_instances()[-self._perception_window:])
@@ -106,8 +108,9 @@ class ModelLearnAgent(object):
             logger.info("Belief distribution: {}".format(self._state_distribution))
         if self.model is not None and self.epsilon < random():
             logger.info("Making decision No. %d with POMDP model", self._iterations)
-            action = solve(self.usm,
-                           self.model,
+            usm, model = self.model
+            action = solve(usm,
+                           model,
                            self.usm.get_instances()[-self._perception_window:])
             self._actions.append(action)
             return action

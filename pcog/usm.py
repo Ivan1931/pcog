@@ -3,7 +3,7 @@ from random import randint
 from scipy.stats import ks_2samp
 import sys
 
-EPSILON = 0.000000000000001
+EPSILON = 0.000000001
 
 
 def normalise_to_one(numbers):
@@ -190,7 +190,7 @@ class UtileSuffixMemory(object):
     def insert(self, instance):
         if instance in self.instances:
             raise ValueError("Inserting an instance that has already been used")
-        if 0 < len(self.instances): 
+        if 0 < len(self.instances): # Add new instance to end of instance linked list
             self.instances[-1].add_front(instance)
         self.instances.append(instance)
         state = self._insert()
@@ -387,7 +387,7 @@ class UtileSuffixMemory(object):
             transitions[idx] = equal_count / leaf_count
             idx += 1
         x = sum(transitions)
-        if EPSILON <= abs(x - 1.0):
+        if abs(x - 1.0) >= EPSILON:
             raise ValueError("Transition function is not close enough to one")
         return normalise_to_one(transitions)
 
@@ -464,3 +464,18 @@ class UtileSuffixMemory(object):
             level = levels[i]
             result += " ".join(map(str, level)) + "\n"
         return result
+
+    def derive_new(self, memodict={}):
+        usm = UtileSuffixMemory(
+            window_size=self.window_size,
+            gamma=self.gamma,
+            known_actions=self.get_actions(),
+            known_observations=self.get_observations(),
+        )
+        for i in self.get_instances():
+            usm.insert(Instance(
+                action=i.action,
+                observation=i.observation,
+                reward=i.reward
+            ))
+        return usm

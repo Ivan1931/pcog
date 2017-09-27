@@ -127,3 +127,84 @@ class SimplePerceptor(Perceptor):
                 return 5.0
             else:
                 return -20.0
+
+
+class ComplexPerceptor(SimplePerceptor):
+    def score_action(self, action):
+        wolf = self.current.lastWolfPosition is not None
+        food = self.current.lastFoodPosition is not None
+        health = HealthObservation.health_level(self.current.health)
+        d = dist(self.current.position, self.previous.position)
+        movement = MovementObservation.movement_level(d)
+        if action == Action.ATTACK:
+            if wolf and health != HealthObservation.BAD:
+                return 4.0
+        elif action == Action.EAT:
+            if food and health != HealthObservation.GOOD:
+                return 5.0
+            elif wolf:
+                return -3.0
+            else:
+                return -2.0
+        elif action == Action.FLEE:
+            if wolf and HealthObservation == HealthObservation.BAD:
+                return 4.0
+            else:
+                return -2.0
+        else:
+            if not wolf and not food and movement == MovementObservation.STATIONARY:
+                return 2.0
+            else:
+                return 0.0
+
+    def smart_explore(self):
+        max_action = Action.EXPLORE
+        max_reward = -sys.maxint
+        for action in Action.SET:
+            reward = self.score_action(action)
+            if max_reward < reward:
+                max_reward = reward
+                max_action = action
+        return max_action
+
+    def perception_reward(self, action):
+        kill_increase = self.current.kills != self.previous.kills
+        wolf = self.previous.lastWolfPosition is not None
+        food = self.previous.lastFoodPosition is not None
+        current_health = HealthObservation.health_level(self.current.health)
+        past_health = HealthObservation.health_level(self.previous.health)
+        death = self.previous.deaths != self.current.deaths
+        d = dist(self.current.position, self.previous.position)
+        movement = MovementObservation.movement_level(d)
+        if death:
+            return -20.0
+        if action == Action.ATTACK:
+            if wolf:
+                if kill_increase:
+                    return 15.0
+                else:
+                    return 3.0
+            elif movement == MovementObservation.STATIONARY:
+                return -7.0
+            else:
+                return -5.0
+        elif action == Action.EAT:
+            if food:
+                if past_health < current_health:
+                    return 10.0
+                else:
+                    return -5.0
+            else:
+                return -5.0
+        elif action == Action.FLEE:
+            if past_health == HealthObservation.BAD and wolf:
+                return 5.0
+            else:
+                return -7.0
+        else:
+            if wolf and past_health == HealthObservation.GOOD:
+                return -5.0
+            elif food and past_health != HealthObservation.GOOD:
+                return -5.0
+            else:
+                return 1.0
