@@ -40,7 +40,7 @@ class ModelLearnAgent(object):
         self._use_smart_explore = use_smart_explore
         self.epsilon = epsilon
         self.regens = 0
-        self.max_regens = 10
+        self.max_regens = 6
         usm._observation_space = self.possible_observations()
 
     def possible_observations(self):
