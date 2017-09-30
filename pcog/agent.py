@@ -437,3 +437,21 @@ def simulate(humanoid_string):
     humanoid = Humanoid.from_json(humanoid_string)
     action = run_pcog_simulation(humanoid)
     return Action.qcog_action(action)
+
+def run_skinny_pomdp(skinny_pomdp):
+    reward_fn = skinny_pomdp.rewardFn
+    transition_fn = skinny_pomdp.transitionFn
+    observation_fn = skinny_pomdp.observationFn
+    belief = skinny_pomdp.beliefState
+    S = len(belief)
+    A = Action.N
+    O = S
+    model = POMDP.Model(O, S, A)
+    model.setRewardFunction(reward_fn)
+    model.setObservationFunction(observation_fn)
+    model.setTransitionFunction(transition_fn)
+    model.setDiscount(0.8)
+    solver = POMDP.POMCPModel(model, 1000, 1000, 10000.0)
+    action = solver.sampleAction(belief, 10)
+    return action
+

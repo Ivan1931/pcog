@@ -183,7 +183,7 @@ class ComplexPerceptor(SimplePerceptor):
                 if kill_increase:
                     return 17.0
                 else:
-                    return 5.0
+                    return 6.0
             elif movement == MovementObservation.STATIONARY:
                 return -6.0
             else:
@@ -191,20 +191,20 @@ class ComplexPerceptor(SimplePerceptor):
         elif action == Action.EAT:
             if food:
                 if past_health < current_health:
-                    return 10.0
+                    return 13.0
                 else:
                     return -7.0
             else:
                 return -5.0
         elif action == Action.FLEE:
             if past_health == HealthObservation.BAD and wolf:
-                return 5.0
+                return 3.0
             else:
-                return -7.0
+                return -10.0
         else:
             if wolf and past_health == HealthObservation.GOOD:
                 return -5.0
             elif food and past_health != HealthObservation.GOOD:
                 return -5.0
             else:
-                return 2.0
+                return 1.0

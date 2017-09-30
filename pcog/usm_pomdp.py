@@ -113,8 +113,8 @@ def build_pomdp_model(usm, should_draw=False):
     return model
 
 
-def solve(usm, model, past_perceptions, belief_nodes=1000, horizon=10, episolon=0.03):
-    solver = POMDP.POMCPModel(model, belief_nodes, 1000, 10000.0)
+def solve(usm, model, past_perceptions, belief_nodes=10000, horizon=10, episolon=0.03):
+    solver = POMDP.POMCPModel(model, belief_nodes, 5000, 2.0)
     beliefs = belief_state(usm, past_perceptions)
     logger.info("Beliefs: %s", " ".join(map(str, beliefs)))
     a = solver.sampleAction(beliefs, horizon)
