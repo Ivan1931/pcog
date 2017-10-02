@@ -18,6 +18,8 @@ sudo apt-get install libeigen3-dev liblpsolve55-dev python-tk graphviz python-py
 ```
 
 # Building AI-toolbox
+In this section we build AI-toolbox so that we can use its shared libraries to run PCog. 
+
 First clone AI-toolbox
 
 ```
@@ -34,7 +36,7 @@ cd build
 cmake ..
 make
 ```
-Now you should have 
+Now you should have the shared libraries located in `build` directory. 
 
 # Setting up PCog
 First clone PCog
